@@ -127,8 +127,24 @@ ARRAY array_clear(ARRAY array) {
 }
 
 ARRAY array_destroy(ARRAY array) {
+    if (array == NULL)
+        return NULL;
+
     for (int i = 0; i < array->size; i++)
         free(array->data[i]);
+
+    free(array->data);
+    free(array);
+
+    return NULL;
+}
+
+ARRAY array_destroy_struct(ARRAY array, void (*destroy)(void *data)) {
+    if (array == NULL || destroy == NULL)
+        return NULL;
+
+    for (int i = 0; i < array->size; i++)
+        destroy(array->data[i]);
 
     free(array->data);
     free(array);

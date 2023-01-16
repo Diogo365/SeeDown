@@ -37,6 +37,7 @@ struct MANGA {
     char *status;
     char *description;
 
+    char *db_name;
     char *url;
     char *image_url;
     char *rss_url;
@@ -56,6 +57,10 @@ typedef struct CHAPTER *CHAPTER;
 MANGA manga_create();
 void manga_destroy(MANGA manga);
 void manga_print(MANGA manga);
+
+CHAPTER chapter_create();
+void chapter_destroy(CHAPTER chapter);
+void chapter_print(CHAPTER chapter);
 
 
 // Global variables
@@ -80,6 +85,7 @@ MANGA manga_create() {
     manga->status = NULL;
     manga->description = NULL;
 
+    manga->db_name = NULL;
     manga->url = NULL;
     manga->image_url = NULL;
     manga->rss_url = NULL;
@@ -88,7 +94,7 @@ MANGA manga_create() {
     manga->total_chapters = 0;
     manga->latest_chapter = 0;
 
-    manga->chapters = array_create(10);
+    manga->chapters = NULL;
 
     return manga;
 }
@@ -106,11 +112,12 @@ void manga_destroy(MANGA manga) {
     if (manga->status != NULL) { free(manga->status); }
     if (manga->description != NULL) { free(manga->description); }
     
+    if (manga->db_name != NULL) { free(manga->db_name); }
     if (manga->url != NULL) { free(manga->url); }
     if (manga->image_url != NULL) { free(manga->image_url); }
     if (manga->rss_url != NULL) { free(manga->rss_url); }
 
-    array_destroy(manga->chapters);
+    array_destroy_struct(manga->chapters, (void *) chapter_destroy);
 
     free(manga);
 }
@@ -119,24 +126,58 @@ void manga_print(MANGA manga) {
     if (manga == NULL) { return; }
 
     printf("{\n");
-    printf("\t\"name\": \"%s\",\n"                  , manga->name);
-    printf("\t\"alternative_names\": \"%s\",\n"     , manga->alternative_names);
-    printf("\t\"authors\": \"%s\",\n"               , manga->authors);
-    printf("\t\"genres\": \"%s\",\n"                , manga->genres);
-    printf("\t\"type\": \"%s\",\n"                  , manga->type);
-    printf("\t\"released\": \"%s\",\n"              , manga->released);
-    printf("\t\"official_translation\": \"%s\",\n"  , manga->official_translation);
-    printf("\t\"status\": \"%s\",\n"                , manga->status);
-    printf("\t\"description\": \"%s\",\n"           , manga->description);
+    printf("    \"name\": \"%s\",\n"                  , manga->name);
+    printf("    \"alternative_names\": \"%s\",\n"     , manga->alternative_names);
+    printf("    \"authors\": \"%s\",\n"               , manga->authors);
+    printf("    \"genres\": \"%s\",\n"                , manga->genres);
+    printf("    \"type\": \"%s\",\n"                  , manga->type);
+    printf("    \"released\": \"%s\",\n"              , manga->released);
+    printf("    \"official_translation\": \"%s\",\n"  , manga->official_translation);
+    printf("    \"status\": \"%s\",\n"                , manga->status);
+    printf("    \"description\": \"%s\",\n"           , manga->description);
     
-    printf("\t\"url\": \"%s\",\n"                   , manga->url);
-    printf("\t\"image_url\": \"%s\"\n"              , manga->image_url);
-    printf("\t\"rss_url\": \"%s\"\n"                , manga->rss_url);
+    printf("    \"db_name\": \"%s\",\n"               , manga->db_name);
+    printf("    \"url\": \"%s\",\n"                   , manga->url);
+    printf("    \"image_url\": \"%s\"\n"              , manga->image_url);
+    printf("    \"rss_url\": \"%s\"\n"                , manga->rss_url);
 
-    printf("\t\"chapters_count\": %d,\n"            , manga->chapters_count);
-    printf("\t\"total_chapters\": %d,\n"            , manga->total_chapters);
-    printf("\t\"latest_chapter\": %f,\n"            , manga->latest_chapter);
+    printf("    \"chapters_count\": %d,\n"            , manga->chapters_count);
+    printf("    \"total_chapters\": %d,\n"            , manga->total_chapters);
+    printf("    \"latest_chapter\": %.3f,\n"          , manga->latest_chapter);
 
+    printf("}\n");
+}
+
+CHAPTER chapter_create() {
+    CHAPTER chapter = (CHAPTER) malloc(sizeof(struct CHAPTER));
+    if (chapter == NULL) { return NULL; }
+
+    chapter->name = NULL;
+    chapter->pub_date = NULL;
+    chapter->url = NULL;
+    chapter->number = 0;
+
+    return chapter;
+}
+
+void chapter_destroy(CHAPTER chapter) {
+    if (chapter == NULL) { return; }
+
+    if (chapter->name != NULL) { free(chapter->name); }
+    if (chapter->pub_date != NULL) { free(chapter->pub_date); }
+    if (chapter->url != NULL) { free(chapter->url); }
+
+    free(chapter);
+}
+
+void chapter_print(CHAPTER chapter) {
+    if (chapter == NULL) { return; }
+
+    printf("{\n");
+    printf("    \"name\": \"%s\",\n"                  , chapter->name);
+    printf("    \"pub_date\": \"%s\",\n"              , chapter->pub_date);
+    printf("    \"url\": \"%s\",\n"                   , chapter->url);
+    printf("    \"number\": %.3f\n"                   , chapter->number);
     printf("}\n");
 }
 
@@ -148,36 +189,34 @@ void scan_directory() {
 
     all_genres = tokenize(json_genres, "\",\"");
 
-    if (DEBUG_MODE) {
-        printf("Number of genres: %d\n", all_genres->size);
-        for (int i = 0; i < all_genres->size; i++) {
-            printf("%s\n", (char *) all_genres->data[i]);
-        }
-    }
+    // if (DEBUG_MODE) {
+    //     printf("Number of genres: %d\n", all_genres->size);
+    //     for (int i = 0; i < all_genres->size; i++) {
+    //         printf("%s\n", (char *) all_genres->data[i]);
+    //     }
+    // }
 
     char *json_mangas = string_truncate(data, "\"Directory\":[", "]};");
 
     ARRAY json_mangas_array = tokenize(json_mangas, "},{");
 
-    if (DEBUG_MODE && false) {
-        for (int i = 0; i < json_mangas_array->size; i++) {
-            printf("%s\n", (char *) json_mangas_array->data[i]);
-        }
-    }
+    // if (DEBUG_MODE) {
+    //     for (int i = 0; i < json_mangas_array->size; i++) {
+    //         printf("%s\n", (char *) json_mangas_array->data[i]);
+    //     }
+    // }
 
     mangas = array_create_size(json_mangas_array->size, 100);
 
     for (int i = 0; i < json_mangas_array->size; i++) {
         MANGA manga = manga_create();
 
-        char *temp = string_truncate((char *) json_mangas_array->data[i], "\"i\":\"", "\"");
-        manga->url = concat_strings(3, MANGA_URL, temp, "/");
-        destroy_strings(1, temp);
-
         manga->name = string_truncate((char *) json_mangas_array->data[i], "\"s\":\"", "\"");
+        deci_unicode_converter(manga->name);
+
         manga->status = string_truncate((char *) json_mangas_array->data[i], "\"st\":\"", "\"");
 
-        temp = string_truncate(json_mangas_array->data[i], "\"g\":[", "]");
+        char *temp = string_truncate(json_mangas_array->data[i], "\"g\":[", "]");
         ARRAY genres = tokenize(temp, ",");
 
         for (int i = 0; i < genres->size; i++) {
@@ -186,21 +225,93 @@ void scan_directory() {
             if (manga->genres == NULL) {
                 manga->genres = create_string(genre);
             } else {
+                char *point = manga->genres;
                 manga->genres = concat_strings(3, manga->genres, ", ", genre);
+                destroy_strings(1, point);
             }
         }
+
+        manga->db_name = string_truncate((char *) json_mangas_array->data[i], "\"i\":\"", "\"");
+        manga->url = concat_strings(2, MANGA_URL, manga->db_name);
+        manga->rss_url = concat_strings(3, RSS_URL, manga->db_name, ".xml");
 
         destroy_strings(1, temp);
         array_destroy(genres);
 
         array_add(mangas, manga);
+
+        // if (DEBUG_MODE) {
+        //     manga_print(manga);
+        //     break;
+        // }
     }
 
-    manga_print(mangas->data[0]);
-
-    destroy_strings(2, data, json_genres, json_mangas);
-    array_destroy(all_genres);
+    destroy_strings(3, data, json_genres, json_mangas);
     array_destroy(json_mangas_array);
+
+    return;
+}
+
+void scan_rss(MANGA manga) {
+    if (manga == NULL) { return; }
+
+    manga_print(manga);
+
+    void *data = simple_curl(manga->rss_url);
+    if (data == NULL) { return; }
+
+    // Image processing
+    char *image_xml = string_truncate(data, "<image>", "</image>");
+    manga->image_url = string_truncate(image_xml, "<url>", "</url>");
+
+    // Chapters processing
+    char *item_xml = string_truncate(data, "</image>", "</channel>");
+    ARRAY items = tokenize(item_xml, "</item>");
+
+    manga->total_chapters = items->size - 1;
+    manga->chapters = array_create_size(items->size, 10);
+
+    for (int i = manga->total_chapters - 1; i >= 0; i--) {
+        CHAPTER chapter = chapter_create();
+
+        chapter->name = string_truncate(items->data[i], "<title>", "</title>");
+        html_unicode_converter(chapter->name);
+        deci_unicode_converter(chapter->name);
+
+        chapter->url = string_truncate(items->data[i], "<link>", "</link>");        
+        chapter->pub_date = string_truncate(items->data[i], "<pubDate>", "</pubDate>");
+
+        char *temp = concat_strings(3, ">", manga->db_name, "-");
+        char *number = string_truncate(items->data[i], temp, "</");
+        chapter->number = atof(number);
+
+        destroy_strings(2, temp, number);
+
+        array_add(manga->chapters, chapter);
+
+        chapter_print(chapter);
+    }
+
+    manga->latest_chapter = ((CHAPTER) manga->chapters->data[manga->total_chapters - 1])->number;
+
+    for (int i = manga->total_chapters - 1; i > 0; i--) {
+        CHAPTER chapter = (CHAPTER) manga->chapters->data[i];
+        if (chapter->number == (int) chapter->number) {
+            manga->chapters_count = chapter->number;
+            break;
+        }
+    }
+
+    manga_print(manga);
+
+    array_destroy(items);
+    destroy_strings(3, data, image_xml, item_xml);
+
+    return;
+}
+
+void scan_manga() {
+
 
     return;
 }

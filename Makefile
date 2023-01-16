@@ -25,3 +25,9 @@ run:
 
 valgrind:
 	valgrind --leak-check=full ./main.out
+
+memory:
+	valgrind --tool=massif --massif-out-file=massif.out.12345 ./main.out 
+	ms_print massif.out.12345 > memory.txt
+	rm -f massif.out.12345
+	
