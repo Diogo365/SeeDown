@@ -31,6 +31,10 @@ int main(int argc, char *argv[]) {
     scan_directory();
 
     scan_rss((MANGA) mangas->data[66]);
+    scan_manga((MANGA) mangas->data[66]);
+
+    scan_rss((MANGA) mangas->data[1]);
+    scan_manga((MANGA) mangas->data[1]);
 
     array_destroy(all_genres);
     array_destroy_struct(mangas, (void *) manga_destroy);

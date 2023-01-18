@@ -223,7 +223,7 @@ void scan_directory() {
             int genre_index = atoi(genres->data[i]);
             char *genre = all_genres->data[genre_index];
             if (manga->genres == NULL) {
-                manga->genres = create_string(genre);
+                manga->genres = string_create(genre);
             } else {
                 char *point = manga->genres;
                 manga->genres = concat_strings(3, manga->genres, ", ", genre);
@@ -254,8 +254,6 @@ void scan_directory() {
 
 void scan_rss(MANGA manga) {
     if (manga == NULL) { return; }
-
-    manga_print(manga);
 
     void *data = simple_curl(manga->rss_url);
     if (data == NULL) { return; }
@@ -288,8 +286,6 @@ void scan_rss(MANGA manga) {
         destroy_strings(2, temp, number);
 
         array_add(manga->chapters, chapter);
-
-        chapter_print(chapter);
     }
 
     manga->latest_chapter = ((CHAPTER) manga->chapters->data[manga->total_chapters - 1])->number;
@@ -302,16 +298,111 @@ void scan_rss(MANGA manga) {
         }
     }
 
-    manga_print(manga);
-
     array_destroy(items);
     destroy_strings(3, data, image_xml, item_xml);
 
     return;
 }
 
-void scan_manga() {
+void scan_manga(MANGA manga) {
+    if (manga == NULL) { return; }
 
+    manga_print(manga);
+
+    void *data = simple_curl(manga->url);
+    char *temp;
+
+    // Alternate Name(s) processing
+    char *alt_name_xml = string_truncate(data, "Alternate Name(s):</span>", "</i>");
+    if (alt_name_xml != NULL) {
+        remove_all_inplace(alt_name_xml, '\r');
+        remove_all_inplace(alt_name_xml, '\n');
+        remove_all_inplace(alt_name_xml, '\t');
+        string_trim_inplace(alt_name_xml);
+
+        manga->alternative_names = string_create(alt_name_xml);
+    }
+
+    // Author(s) processing
+    char *author_xml = string_truncate(data, "Author(s):</span>", "</i>");
+    if (author_xml != NULL) {
+        remove_all_inplace(author_xml, '\r');
+        remove_all_inplace(author_xml, '\n');
+        remove_all_inplace(author_xml, '\t');
+        string_trim_inplace(author_xml);
+        
+        ARRAY authors = tokenize(author_xml, ">, <");
+        for (int i = 0; i < authors->size; i++) {
+            temp = string_truncate((char *) authors->data[i], "'>", "<");
+            if (manga->authors == NULL) {
+                manga->authors = string_create(temp);
+            } else {
+                char *point = manga->authors;
+                manga->authors = concat_strings(3, manga->authors, ", ", temp);
+                destroy_strings(1, point);
+            }
+            destroy_strings(1, temp);
+        }
+
+        array_destroy(authors);
+    }
+    
+    // Type processing
+    char *type_xml = string_truncate(data, "Type:</span>", "</i>");
+    if (type_xml != NULL) {
+        remove_all_inplace(type_xml, '\r');
+        remove_all_inplace(type_xml, '\n');
+        remove_all_inplace(type_xml, '\t');
+        string_trim_inplace(type_xml);
+
+        manga->type = string_truncate(type_xml, ">", "</a>");
+    }
+
+    // Released processing
+    char *released_xml = string_truncate(data, "Released:</span>", "</i>");
+    if (released_xml != NULL) {
+        remove_all_inplace(released_xml, '\r');
+        remove_all_inplace(released_xml, '\n');
+        remove_all_inplace(released_xml, '\t');
+        string_trim_inplace(released_xml);
+
+        manga->released = string_truncate(released_xml, ">", "</a>");
+    }
+
+    // Official Translation processing
+    char *official_translation_xml = string_truncate(data, "Official Translation:</span>", "</i>");
+    if (official_translation_xml != NULL) {
+        remove_all_inplace(official_translation_xml, '\r');
+        remove_all_inplace(official_translation_xml, '\n');
+        remove_all_inplace(official_translation_xml, '\t');
+        string_trim_inplace(official_translation_xml);
+
+        manga->official_translation = string_truncate(official_translation_xml, ">", "</a>");
+    }
+
+    // Description processing
+    char *description_xml = string_truncate(data, "Description:</span>", "</i>");
+    if (description_xml != NULL) {
+        remove_all_inplace(description_xml, '\r');
+        remove_all_inplace(description_xml, '\n');
+        remove_all_inplace(description_xml, '\t');
+        string_trim_inplace(description_xml);
+
+        manga->description = string_truncate(description_xml, ">", "</div>");
+        html_unicode_converter(manga->description);
+        deci_unicode_converter(manga->description);
+    }
+
+    manga_print(manga);
+
+    destroy_strings(7, 
+                    data, 
+                    alt_name_xml, 
+                    author_xml, 
+                    type_xml, 
+                    released_xml, 
+                    official_translation_xml, 
+                    description_xml);
 
     return;
 }

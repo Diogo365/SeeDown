@@ -9,16 +9,19 @@
 typedef char *multi_tok_t;
 
 // Declarations
-char *create_string(char *string);
-char *lowercase(char *string);
-char *uppercase(char *string);
-char *trim(char *string);
-char *remove_newline(char *string);
+char *string_create(char *string);
+char *string_lowercase(char *string);
+char *string_uppercase(char *string);
+char *string_trim(char *string);
+char *string_trim_inplace(char *string);
+char *string_remove_newline(char *string);
 
 char *replace_all(char *string, char find, char replace);
-void replace_all_inplace(char *string, char find, char replace);
+char *replace_all_inplace(char *string, char find, char replace);
 char *replace(char *string, char *find, char *replace);
 void replace_inplace(char *string, char *find, char *replace);
+
+char *remove_all_inplace(char *string, char find);
 
 char *concat_strings(int count, ...);
 char *string_truncate(char *string, char *start, char *end);
@@ -38,14 +41,14 @@ void close_file(FILE *file, char *filename);
 
 multi_tok_t s = NULL;
 
-char *create_string(char *string) {
+char *string_create(char *string) {
     char *str = (char *) malloc(strlen(string) + 1);
     strcpy(str, string);
     return str;
 }
 
-char *lowercase(char *string) {
-    char *str = create_string(string);
+char *string_lowercase(char *string) {
+    char *str = string_create(string);
 
     for (int i = 0; i < (int) strlen(str); i++) {
         str[i] = tolower(str[i]);
@@ -54,8 +57,8 @@ char *lowercase(char *string) {
     return str;
 }
 
-char *uppercase(char *string) {
-    char *str = create_string(string);
+char *string_uppercase(char *string) {
+    char *str = string_create(string);
 
     for (int i = 0; i < (int) strlen(str); i++) {
         str[i] = toupper(str[i]);
@@ -64,12 +67,12 @@ char *uppercase(char *string) {
     return str;
 }
 
-char *trim(char *string) {
+char *string_trim(char *string) {
     int i = 0;
-    while (string[i] == ' ') { i++; }
+    while (string[i] == ' ' || string[i] == '\n') { i++; }
 
     int j = strlen(string) - 1;
-    while (string[j] == ' ') { j--; }
+    while (string[j] == ' ' || string[i] == '\n') { j--; }
 
     char *trimmed = (char *) malloc(j - i + 2);
     strncpy(trimmed, string + i, j - i + 1);
@@ -78,15 +81,30 @@ char *trim(char *string) {
     return trimmed;
 }
 
-char *remove_newline(char *string) {
-    char *trimmed = trim(string);
+char *string_trim_inplace(char *string) {
+    int i = 0;
+    while (string[i] == ' ' || string[i] == '\n') { i++; }
+
+    int j = strlen(string) - 1;
+    while (string[j] == ' ' || string[i] == '\n') { j--; }
+
+    memmove(string, string + i, j - i + 1);
+    string[j - i + 1] = '\0';
+
+    return string;
+}
+
+char *string_remove_newline(char *string) {
+    char *trimmed = string_trim(string);
     if (trimmed[strlen(trimmed) - 1] == '\n')
         trimmed[strlen(trimmed) - 1] = '\0';
     return trimmed;
 }
 
+
+
 char *replace_all(char *string, char find, char replace) {
-    char *str = create_string(string);
+    char *str = string_create(string);
 
     for (int i = 0; i < (int) strlen(str); i++) {
         if (str[i] == find) {
@@ -97,16 +115,18 @@ char *replace_all(char *string, char find, char replace) {
     return str;
 }
 
-void replace_all_inplace(char *string, char find, char replace) {
+char *replace_all_inplace(char *string, char find, char replace) {
     for (int i = 0; i < (int) strlen(string); i++) {
         if (string[i] == find) {
             string[i] = replace;
         }
     }
+
+    return string;
 }
 
 char *replace(char *string, char *find, char *replace) {
-    char *str = create_string(string);
+    char *str = string_create(string);
 
     char *start_index = strstr(str, find);
     if (start_index == NULL) {
@@ -148,6 +168,23 @@ void replace_inplace(char *string, char *find, char *replace) {
     free(replaced);
 }
 
+char *remove_all_inplace(char *string, char find) {
+    int i = 0;
+    int j = 0;
+    while (string[i] != '\0') {
+        if (string[i] != find) {
+            string[j] = string[i];
+            j++;
+        }
+        i++;
+    }
+    string[j] = '\0';
+
+    return string;
+}
+
+
+
 char *concat_strings(int count, ...) {
     va_list args;
     va_start(args, count);
@@ -170,11 +207,10 @@ char *concat_strings(int count, ...) {
 
 char *string_truncate(char *string, char *start, char *end) {
     char *start_index = strstr(string, start);
-    char *end_index = strstr(start_index + strlen(start), end);
+    if (start_index == NULL) { return NULL; }
 
-    if (start_index == NULL || end_index == NULL) {
-        return NULL;
-    }
+    char *end_index = strstr(start_index + strlen(start), end);
+    if (end_index == NULL) { return NULL; }
 
     int start_offset = strlen(start);
     // int end_offset = strlen(end);
@@ -773,11 +809,11 @@ char *join_tokens(ARRAY array, char *delimiter);
 ARRAY tokenize(char *string, char *delimiter) {
     ARRAY array = array_create(1);
 
-    char *copy = remove_newline(string);
+    char *copy = string_remove_newline(string);
     char *token = multi_tok(copy, delimiter);
 
     while (token != NULL) {
-        array_add(array, (void *) create_string(token));
+        array_add(array, (void *) string_create(token));
         token = multi_tok(NULL, delimiter);
     }
 
@@ -787,7 +823,7 @@ ARRAY tokenize(char *string, char *delimiter) {
 }
 
 char *join_tokens(ARRAY array, char *delimiter) {
-    char *str = create_string("");
+    char *str = string_create("");
 
     for (int i = 0; i < array->size; i++) {
         str = concat_strings(3, str, (char *) array->data[i], delimiter);
