@@ -8,6 +8,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <sys/stat.h>
+
 #include <wchar.h>
 #include <locale.h>
 
@@ -28,14 +30,24 @@ int main(int argc, char *argv[]) {
 
     if (DEBUG_MODE) printf("\n");
 
+    // Create base directory to save mangas
+    if (mkdir(SAVE_PATH, 0777) == -1 && errno != EEXIST) {
+        printf("Error creating directory mangas");
+        return 1;
+    }
+
     scan_directory();
 
     scan_rss((MANGA) mangas->data[66]);
     scan_manga((MANGA) mangas->data[66]);
+    prepare_chapter((MANGA) mangas->data[66]);
+    download_chapter((MANGA) mangas->data[66]);
 
     scan_rss((MANGA) mangas->data[1]);
     scan_manga((MANGA) mangas->data[1]);
-
+    prepare_chapter((MANGA) mangas->data[1]);
+    download_chapter((MANGA) mangas->data[1]);
+    
     array_destroy(all_genres);
     array_destroy_struct(mangas, (void *) manga_destroy);
 

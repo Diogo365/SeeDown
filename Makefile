@@ -3,7 +3,7 @@ CC = gcc
 
 #Compiler flags
 #Release
-#CFLAGS = -02 -Wall -I .
+#CFLAGS = -O3 -Wall -I .
 
 #Debug
 CFLAGS = -g -Wall -Wextra -I .

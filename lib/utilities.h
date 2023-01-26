@@ -1,45 +1,70 @@
 #ifndef UTILITIES_H
 #define UTILITIES_H
 
+#include <ctype.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
 
-typedef char *multi_tok_t;
-
 // Declarations
+
+int count_digits(long long n);
+
 char *string_create(char *string);
-char *string_lowercase(char *string);
-char *string_uppercase(char *string);
-char *string_trim(char *string);
-char *string_trim_inplace(char *string);
-char *string_remove_newline(char *string);
+char *string_copy(char *string);
+char *string_lowercase(char *string, bool inplace);
+char *string_uppercase(char *string, bool inplace);
+char *string_trim(char *string, bool inplace);
+char *string_concat(int count, ...);
+char *string_truncate(char *string, char *start, char *end, bool inplace);
+void string_destroy(char *string);
+void strings_destroy(int count, ...);
 
-char *replace_all(char *string, char find, char replace);
-char *replace_all_inplace(char *string, char find, char replace);
-char *replace(char *string, char *find, char *replace);
-void replace_inplace(char *string, char *find, char *replace);
+// Replace operations
+#define replace_all(string, find, replace) _Generic(find, \
+    int: replace_all_char,                                \
+    char *: replace_all_string                            \
+) (string, find, replace)
 
-char *remove_all_inplace(char *string, char find);
+char *replace_all_char(char *string, char find, char replace);
+char *replace_all_string(char *string, char *find, char *replace);
+// End of replace operations
 
-char *concat_strings(int count, ...);
-char *string_truncate(char *string, char *start, char *end);
+// Remove operations
+#define remove_all(string, find) _Generic(find, \
+    int: remove_all_char,                       \
+    char *: remove_all_string                   \
+) (string, find)
 
-void html_unicode_converter(char *string);
-void deci_unicode_converter(char *string);
+char *remove_all_char(char *string, char find);
+char *remove_all_string(char *string, char *find);
+// End of remove operations
 
-void destroy_strings(int count, ...);
+char *html_unicode_converter(char *string);
+char *deci_unicode_converter(char *string);
+
+// Multi-tokenizer
+typedef char *multi_tok_t;
 
 multi_tok_t init();
 char *multi_tok(char *input, char *delimiter);
+// End of multi-tokenizer
 
 FILE *open_file(char *filename, char *mode);
 void close_file(FILE *file, char *filename);
 
 // Implementations
 
-multi_tok_t s = NULL;
+int count_digits(long long n) {
+    if (n / 10 == 0)
+        return 1;
+
+    return 1 + count_digits(n / 10);
+}
+
+
 
 char *string_create(char *string) {
     char *str = (char *) malloc(strlen(string) + 1);
@@ -47,8 +72,16 @@ char *string_create(char *string) {
     return str;
 }
 
-char *string_lowercase(char *string) {
-    char *str = string_create(string);
+char *string_copy(char *string) {
+    char *str = (char *) malloc(strlen(string) + 1);
+    strcpy(str, string);
+    return str;
+}
+
+char *string_lowercase(char *string, bool inplace) {
+    char *str;
+    if (inplace) { str = string; }
+    else { str = string_copy(string); }
 
     for (int i = 0; i < (int) strlen(str); i++) {
         str[i] = tolower(str[i]);
@@ -57,9 +90,11 @@ char *string_lowercase(char *string) {
     return str;
 }
 
-char *string_uppercase(char *string) {
-    char *str = string_create(string);
-
+char *string_uppercase(char *string, bool inplace) {
+    char *str;
+    if (inplace) { str = string; }
+    else { str = string_copy(string); }
+    
     for (int i = 0; i < (int) strlen(str); i++) {
         str[i] = toupper(str[i]);
     }
@@ -67,125 +102,25 @@ char *string_uppercase(char *string) {
     return str;
 }
 
-char *string_trim(char *string) {
+char *string_trim(char *string, bool inplace) {
+    char *str;
+
+    if (inplace) { str = string; }
+    else { str = string_copy(string); }
+
     int i = 0;
-    while (string[i] == ' ' || string[i] == '\n') { i++; }
+    while (str[i] == ' ' || str[i] == '\n' || str[i] == '\t' || str[i] == '\r') { i++; }
 
-    int j = strlen(string) - 1;
-    while (string[j] == ' ' || string[i] == '\n') { j--; }
+    int j = strlen(str) - 1;
+    while (str[i] == ' ' || str[i] == '\n' || str[i] == '\t' || str[i] == '\r') { j--; }
 
-    char *trimmed = (char *) malloc(j - i + 2);
-    strncpy(trimmed, string + i, j - i + 1);
-    trimmed[j - i + 1] = '\0';
-
-    return trimmed;
-}
-
-char *string_trim_inplace(char *string) {
-    int i = 0;
-    while (string[i] == ' ' || string[i] == '\n') { i++; }
-
-    int j = strlen(string) - 1;
-    while (string[j] == ' ' || string[i] == '\n') { j--; }
-
-    memmove(string, string + i, j - i + 1);
-    string[j - i + 1] = '\0';
-
-    return string;
-}
-
-char *string_remove_newline(char *string) {
-    char *trimmed = string_trim(string);
-    if (trimmed[strlen(trimmed) - 1] == '\n')
-        trimmed[strlen(trimmed) - 1] = '\0';
-    return trimmed;
-}
-
-
-
-char *replace_all(char *string, char find, char replace) {
-    char *str = string_create(string);
-
-    for (int i = 0; i < (int) strlen(str); i++) {
-        if (str[i] == find) {
-            str[i] = replace;
-        }
-    }
+    memmove(str, str + i, j - i + 1);
+    str[j - i + 1] = '\0';
 
     return str;
 }
 
-char *replace_all_inplace(char *string, char find, char replace) {
-    for (int i = 0; i < (int) strlen(string); i++) {
-        if (string[i] == find) {
-            string[i] = replace;
-        }
-    }
-
-    return string;
-}
-
-char *replace(char *string, char *find, char *replace) {
-    char *str = string_create(string);
-
-    char *start_index = strstr(str, find);
-    if (start_index == NULL) {
-        free(str);
-        return NULL;
-    }
-
-    int start_offset = start_index - str;
-    int end_offset = start_offset + strlen(find);
-
-    int length = strlen(str) - strlen(find) + strlen(replace);
-    char *replaced = (char *) malloc(length + 1);
-    strncpy(replaced, str, start_offset);
-    replaced[start_offset] = '\0';
-    strcat(replaced, replace);
-    strcat(replaced, str + end_offset);
-
-    free(str);
-    return replaced;
-}
-
-void replace_inplace(char *string, char *find, char *replace) {
-    char *start_index = strstr(string, find);
-    if (start_index == NULL) {
-        return;
-    }
-
-    int start_offset = start_index - string;
-    int end_offset = start_offset + strlen(find);
-
-    int length = strlen(string) - strlen(find) + strlen(replace);
-    char *replaced = (char *) malloc(length + 1);
-    strncpy(replaced, string, start_offset);
-    replaced[start_offset] = '\0';
-    strcat(replaced, replace);
-    strcat(replaced, string + end_offset);
-
-    strcpy(string, replaced);
-    free(replaced);
-}
-
-char *remove_all_inplace(char *string, char find) {
-    int i = 0;
-    int j = 0;
-    while (string[i] != '\0') {
-        if (string[i] != find) {
-            string[j] = string[i];
-            j++;
-        }
-        i++;
-    }
-    string[j] = '\0';
-
-    return string;
-}
-
-
-
-char *concat_strings(int count, ...) {
+char *string_concat(int count, ...) {
     va_list args;
     va_start(args, count);
 
@@ -205,12 +140,12 @@ char *concat_strings(int count, ...) {
     return str;
 }
 
-char *string_truncate(char *string, char *start, char *end) {
+char *string_truncate(char *string, char *start, char *end, bool inplace) {
     char *start_index = strstr(string, start);
-    if (start_index == NULL) { return NULL; }
+    if (start_index == NULL) { return (inplace) ? string : NULL; }
 
     char *end_index = strstr(start_index + strlen(start), end);
-    if (end_index == NULL) { return NULL; }
+    if (end_index == NULL) { return (inplace) ? string : NULL; }
 
     int start_offset = strlen(start);
     // int end_offset = strlen(end);
@@ -220,526 +155,16 @@ char *string_truncate(char *string, char *start, char *end) {
     strncpy(truncated, start_index + start_offset, length);
     truncated[length] = '\0';
 
+    if (inplace) { free(string); }
+
     return truncated;
 }
 
-void html_unicode_converter(char *string) {
-    while (strstr(string, "&quot;") != NULL || strstr(string, "&amp;") != NULL || strstr(string, "&apos;") != NULL || strstr(string, "&lt;") != NULL || strstr(string, "&gt;") != NULL || strstr(string, "&nbsp;") != NULL || strstr(string, "&iexcl;") != NULL || strstr(string, "&cent;") != NULL || strstr(string, "&pound;") != NULL || strstr(string, "&curren;") != NULL || strstr(string, "&yen;") != NULL || strstr(string, "&brvbar;") != NULL || strstr(string, "&sect;") != NULL || strstr(string, "&uml;") != NULL || strstr(string, "&copy;") != NULL || strstr(string, "&ordf;") != NULL || strstr(string, "&laquo;") != NULL || strstr(string, "&not;") != NULL || strstr(string, "&shy;") != NULL || strstr(string, "&reg;") != NULL || strstr(string, "&macr;") != NULL || strstr(string, "&deg;") != NULL || strstr(string, "&plusmn;") != NULL || strstr(string, "&sup2;") != NULL || strstr(string, "&sup3;") != NULL || strstr(string, "&acute;") != NULL || strstr(string, "&micro;") != NULL || strstr(string, "&para;") != NULL || strstr(string, "&middot;") != NULL || strstr(string, "&cedil;") != NULL || strstr(string, "&sup1;") != NULL || strstr(string, "&ordm;") != NULL || strstr(string, "&raquo;") != NULL || strstr(string, "&frac14;") != NULL || strstr(string, "&frac12;") != NULL || strstr(string, "&frac34;") != NULL || strstr(string, "&iquest;") != NULL || strstr(string, "&Agrave;") != NULL || strstr(string, "&Aacute;") != NULL || strstr(string, "&Acirc;") != NULL || strstr(string, "&Atilde;") != NULL || strstr(string, "&Auml;") != NULL || strstr(string, "&Aring;") != NULL || strstr(string, "&AElig;") != NULL || strstr(string, "&Ccedil;") != NULL || strstr(string, "&Egrave;") != NULL || strstr(string, "&Eacute;") != NULL || strstr(string, "&Ecirc;") != NULL || strstr(string, "&Euml;") != NULL || strstr(string, "&Igrave;") != NULL || strstr(string, "&Iacute;") != NULL || strstr(string, "&Icirc;") != NULL || strstr(string, "&Iuml;") != NULL || strstr(string, "&ETH;") != NULL || strstr(string, "&Ntilde;") != NULL || strstr(string, "&Ograve;") != NULL || strstr(string, "&Oacute;") != NULL || strstr(string, "&Ocirc;") != NULL || strstr(string, "&Otilde;") != NULL || strstr(string, "&Ouml;") != NULL || strstr(string, "&times;") != NULL || strstr(string, "&Oslash;") != NULL || strstr(string, "&Ugrave;") != NULL || strstr(string, "&Uacute;") != NULL || strstr(string, "&Ucirc;") != NULL || strstr(string, "&Uuml;") != NULL || strstr(string, "&Yacute;") != NULL || strstr(string, "&THORN;") != NULL || strstr(string, "&szlig;") != NULL || strstr(string, "&agrave;") != NULL || strstr(string, "&aacute;") != NULL || strstr(string, "&acirc;") != NULL || strstr(string, "&atilde;") != NULL || strstr(string, "&auml;") != NULL || strstr(string, "&aring;") != NULL || strstr(string, "&aelig;") != NULL || strstr(string, "&ccedil;") != NULL || strstr(string, "&egrave;") != NULL || strstr(string, "&eacute;") != NULL || strstr(string, "&ecirc;") != NULL || strstr(string, "&euml;") != NULL || strstr(string, "&igrave;") != NULL || strstr(string, "&iacute;") != NULL || strstr(string, "&icirc;") != NULL || strstr(string, "&iuml;") != NULL || strstr(string, "&eth;") != NULL || strstr(string, "&ntilde;") != NULL || strstr(string, "&ograve;") != NULL || strstr(string, "&oacute;") != NULL || strstr(string, "&ocirc;") != NULL || strstr(string, "&otilde;") != NULL || strstr(string, "&ouml;") != NULL || strstr(string, "&divide;") != NULL || strstr(string, "&oslash;") != NULL || strstr(string, "&ugrave;") != NULL || strstr(string, "&uacute;") != NULL || strstr(string, "&ucirc;") != NULL || strstr(string, "&uuml;") != NULL || strstr(string, "&yacute;") != NULL || strstr(string, "&thorn;") != NULL || strstr(string, "&yuml;") != NULL || strstr(string, "&OElig;") != NULL || strstr(string, "&oelig;") != NULL || strstr(string, "&Scaron;") != NULL || strstr(string, "&scaron;") != NULL || strstr(string, "&Yuml;") != NULL || strstr(string, "&fnof;") != NULL || strstr(string, "&circ;") != NULL || strstr(string, "&tilde;") != NULL || strstr(string, "&Alpha;") != NULL || strstr(string, "&Beta;") != NULL || strstr(string, "&Gamma;") != NULL || strstr(string, "&Delta;") != NULL || strstr(string, "&Epsilon;") != NULL || strstr(string, "&Zeta;") != NULL || strstr(string, "&Eta;") != NULL || strstr(string, "&Theta;") != NULL || strstr(string, "&Iota;") != NULL || strstr(string, "&Kappa;") != NULL || strstr(string, "&Lambda;") != NULL || strstr(string, "&Mu;") != NULL || strstr(string, "&Nu;") != NULL || strstr(string, "&Xi;") != NULL || strstr(string, "&Omicron;") != NULL || strstr(string, "&Pi;") != NULL || strstr(string, "&Rho;") != NULL || strstr(string, "&Sigma;") != NULL || strstr(string, "&Tau;") != NULL || strstr(string, "&Upsilon;") != NULL || strstr(string, "&Phi;") != NULL || strstr(string, "&Chi;") != NULL || strstr(string, "&Psi;") != NULL || strstr(string, "&Omega;") != NULL || strstr(string, "&alpha;") != NULL || strstr(string, "&beta;") != NULL || strstr(string, "&gamma;") != NULL || strstr(string, "&delta;") != NULL || strstr(string, "&epsilon;") != NULL || strstr(string, "&zeta;") != NULL || strstr(string, "&eta;") != NULL || strstr(string, "&theta;") != NULL || strstr(string, "&iota;") != NULL || strstr(string, "&kappa;") != NULL || strstr(string, "&lambda;") != NULL || strstr(string, "&mu;") != NULL || strstr(string, "&nu;") != NULL || strstr(string, "&xi;") != NULL || strstr(string, "&omicron;") != NULL || strstr(string, "&pi;") != NULL || strstr(string, "&rho;") != NULL || strstr(string, "&sigmaf;") != NULL || strstr(string, "&sigma;") != NULL || strstr(string, "&tau;") != NULL || strstr(string, "&upsilon;") != NULL || strstr(string, "&phi;") != NULL || strstr(string, "&chi;") != NULL || strstr(string, "&psi;") != NULL || strstr(string, "&omega;") != NULL || strstr(string, "&thetasym;") != NULL || strstr(string, "&upsih;") != NULL || strstr(string, "&piv;") != NULL || strstr(string, "&ensp;") != NULL || strstr(string, "&emsp;") != NULL || strstr(string, "&thinsp;") != NULL || strstr(string, "&zwnj;") != NULL || strstr(string, "&zwj;") != NULL || strstr(string, "&lrm;") != NULL || strstr(string, "&rlm;") != NULL || strstr(string, "&ndash;") != NULL || strstr(string, "&mdash;") != NULL || strstr(string, "&lsquo;") != NULL || strstr(string, "&rsquo;") != NULL || strstr(string, "&sbquo;") != NULL || strstr(string, "&ldquo;") != NULL || strstr(string, "&rdquo;") != NULL || strstr(string, "&bdquo;") != NULL || strstr(string, "&dagger;") != NULL || strstr(string, "&Dagger;") != NULL || strstr(string, "&bull;") != NULL || strstr(string, "&hellip;") != NULL || strstr(string, "&permil;") != NULL || strstr(string, "&prime;") != NULL || strstr(string, "&Prime;") != NULL || strstr(string, "&lsaquo;") != NULL || strstr(string, "&rsaquo;") != NULL || strstr(string, "&oline;") != NULL || strstr(string, "&frasl;") != NULL || strstr(string, "&euro;") != NULL || strstr(string, "&image;") != NULL || strstr(string, "&weierp;") != NULL || strstr(string, "&real;") != NULL || strstr(string, "&trade;") != NULL || strstr(string, "&alefsym;") != NULL || strstr(string, "&larr;") != NULL || strstr(string, "&uarr;") != NULL || strstr(string, "&rarr;") != NULL || strstr(string, "&darr;") != NULL || strstr(string, "&harr;") != NULL || strstr(string, "&crarr;") != NULL || strstr(string, "&lArr;") != NULL || strstr(string, "&uArr;") != NULL || strstr(string, "&rArr;") != NULL || strstr(string, "&dArr;") != NULL || strstr(string, "&hArr;") != NULL || strstr(string, "&forall;") != NULL || strstr(string, "&part;") != NULL || strstr(string, "&exist;") != NULL || strstr(string, "&empty;") != NULL || strstr(string, "&nabla;") != NULL || strstr(string, "&isin;") != NULL || strstr(string, "&notin;") != NULL || strstr(string, "&ni;") != NULL || strstr(string, "&prod;") != NULL || strstr(string, "&sum;") != NULL || strstr(string, "&minus;") != NULL || strstr(string, "&lowast;") != NULL || strstr(string, "&radic;") != NULL || strstr(string, "&prop;") != NULL || strstr(string, "&infin;") != NULL || strstr(string, "&ang;") != NULL || strstr(string, "&and;") != NULL || strstr(string, "&or;") != NULL || strstr(string, "&cap;") != NULL || strstr(string, "&cup;") != NULL || strstr(string, "&int;") != NULL || strstr(string, "&there4;") != NULL || strstr(string, "&sim;") != NULL || strstr(string, "&cong;") != NULL || strstr(string, "&asymp;") != NULL || strstr(string, "&ne;") != NULL || strstr(string, "&equiv;") != NULL || strstr(string, "&le;") != NULL || strstr(string, "&ge;") != NULL || strstr(string, "&sub;") != NULL || strstr(string, "&sup;") != NULL || strstr(string, "&nsub;") != NULL || strstr(string, "&sube;") != NULL || strstr(string, "&supe;") != NULL || strstr(string, "&oplus;") != NULL || strstr(string, "&otimes;") != NULL || strstr(string, "&perp;") != NULL || strstr(string, "&sdot;") != NULL || strstr(string, "&lceil;") != NULL || strstr(string, "&rceil;") != NULL || strstr(string, "&lfloor;") != NULL || strstr(string, "&rfloor;") != NULL || strstr(string, "&loz;") != NULL || strstr(string, "&spades;") != NULL || strstr(string, "&clubs;") != NULL || strstr(string, "&hearts;") != NULL || strstr(string, "&diams;") != NULL || strstr(string, "&lang;") != NULL || strstr(string, "&rang;") != NULL) {
-        replace_inplace(string, "&quot;", "\"");
-        replace_inplace(string, "&amp;", "&");
-        replace_inplace(string, "&apos;", "'");
-        replace_inplace(string, "&lt;", "<");
-        replace_inplace(string, "&gt;", ">");
-        replace_inplace(string, "&nbsp;", " ");
-        replace_inplace(string, "&iexcl;", "¡");
-        replace_inplace(string, "&cent;", "¢");
-        replace_inplace(string, "&pound;", "£");
-        replace_inplace(string, "&curren;", "¤");
-        replace_inplace(string, "&yen;", "¥");
-        replace_inplace(string, "&brvbar;", "¦");
-        replace_inplace(string, "&sect;", "§");
-        replace_inplace(string, "&uml;", "¨");
-        replace_inplace(string, "&copy;", "©");
-        replace_inplace(string, "&ordf;", "ª");
-        replace_inplace(string, "&laquo;", "«");
-        replace_inplace(string, "&not;", "¬");
-        replace_inplace(string, "&shy;", "­");
-        replace_inplace(string, "&reg;", "®");
-        replace_inplace(string, "&macr;", "¯");
-        replace_inplace(string, "&deg;", "°");
-        replace_inplace(string, "&plusmn;", "±");
-        replace_inplace(string, "&sup2;", "²");
-        replace_inplace(string, "&sup3;", "³");
-        replace_inplace(string, "&acute;", "´");
-        replace_inplace(string, "&micro;", "µ");
-        replace_inplace(string, "&para;", "¶");
-        replace_inplace(string, "&middot;", "·");
-        replace_inplace(string, "&cedil;", "¸");
-        replace_inplace(string, "&sup1;", "¹");
-        replace_inplace(string, "&ordm;", "º");
-        replace_inplace(string, "&raquo;", "»");
-        replace_inplace(string, "&frac14;", "¼");
-        replace_inplace(string, "&frac12;", "½");
-        replace_inplace(string, "&frac34;", "¾");
-        replace_inplace(string, "&iquest;", "¿");
-        replace_inplace(string, "&Agrave;", "À");
-        replace_inplace(string, "&Aacute;", "Á");
-        replace_inplace(string, "&Acirc;", "Â");
-        replace_inplace(string, "&Atilde;", "Ã");
-        replace_inplace(string, "&Auml;", "Ä");
-        replace_inplace(string, "&Aring;", "Å");
-        replace_inplace(string, "&AElig;", "Æ");
-        replace_inplace(string, "&Ccedil;", "Ç");
-        replace_inplace(string, "&Egrave;", "È");
-        replace_inplace(string, "&Eacute;", "É");
-        replace_inplace(string, "&Ecirc;", "Ê");
-        replace_inplace(string, "&Euml;", "Ë");
-        replace_inplace(string, "&Igrave;", "Ì");
-        replace_inplace(string, "&Iacute;", "Í");
-        replace_inplace(string, "&Icirc;", "Î");
-        replace_inplace(string, "&Iuml;", "Ï");
-        replace_inplace(string, "&ETH;", "Ð");
-        replace_inplace(string, "&Ntilde;", "Ñ");
-        replace_inplace(string, "&Ograve;", "Ò");
-        replace_inplace(string, "&Oacute;", "Ó");
-        replace_inplace(string, "&Ocirc;", "Ô");
-        replace_inplace(string, "&Otilde;", "Õ");
-        replace_inplace(string, "&Ouml;", "Ö");
-        replace_inplace(string, "&times;", "×");
-        replace_inplace(string, "&Oslash;", "Ø");
-        replace_inplace(string, "&Ugrave;", "Ù");
-        replace_inplace(string, "&Uacute;", "Ú");
-        replace_inplace(string, "&Ucirc;", "Û");
-        replace_inplace(string, "&Uuml;", "Ü");
-        replace_inplace(string, "&Yacute;", "Ý");
-        replace_inplace(string, "&THORN;", "Þ");
-        replace_inplace(string, "&szlig;", "ß");
-        replace_inplace(string, "&agrave;", "à");
-        replace_inplace(string, "&aacute;", "á");
-        replace_inplace(string, "&acirc;", "â");
-        replace_inplace(string, "&atilde;", "ã");
-        replace_inplace(string, "&auml;", "ä");
-        replace_inplace(string, "&aring;", "å");
-        replace_inplace(string, "&aelig;", "æ");
-        replace_inplace(string, "&ccedil;", "ç");
-        replace_inplace(string, "&egrave;", "è");
-        replace_inplace(string, "&eacute;", "é");
-        replace_inplace(string, "&ecirc;", "ê");
-        replace_inplace(string, "&euml;", "ë");
-        replace_inplace(string, "&igrave;", "ì");
-        replace_inplace(string, "&iacute;", "í");
-        replace_inplace(string, "&icirc;", "î");
-        replace_inplace(string, "&iuml;", "ï");
-        replace_inplace(string, "&eth;", "ð");
-        replace_inplace(string, "&ntilde;", "ñ");
-        replace_inplace(string, "&ograve;", "ò");
-        replace_inplace(string, "&oacute;", "ó");
-        replace_inplace(string, "&ocirc;", "ô");
-        replace_inplace(string, "&otilde;", "õ");
-        replace_inplace(string, "&ouml;", "ö");
-        replace_inplace(string, "&divide;", "÷");
-        replace_inplace(string, "&oslash;", "ø");
-        replace_inplace(string, "&ugrave;", "ù");
-        replace_inplace(string, "&uacute;", "ú");
-        replace_inplace(string, "&ucirc;", "û");
-        replace_inplace(string, "&uuml;", "ü");
-        replace_inplace(string, "&yacute;", "ý");
-        replace_inplace(string, "&thorn;", "þ");
-        replace_inplace(string, "&yuml;", "ÿ");
-        replace_inplace(string, "&OElig;", "Œ");
-        replace_inplace(string, "&oelig;", "œ");
-        replace_inplace(string, "&Scaron;", "Š");
-        replace_inplace(string, "&scaron;", "š");
-        replace_inplace(string, "&Yuml;", "Ÿ");
-        replace_inplace(string, "&fnof;", "ƒ");
-        replace_inplace(string, "&circ;", "ˆ");
-        replace_inplace(string, "&tilde;", "˜");
-        replace_inplace(string, "&Alpha;", "Α");
-        replace_inplace(string, "&Beta;", "Β");
-        replace_inplace(string, "&Gamma;", "Γ");
-        replace_inplace(string, "&Delta;", "Δ");
-        replace_inplace(string, "&Epsilon;", "Ε");
-        replace_inplace(string, "&Zeta;", "Ζ");
-        replace_inplace(string, "&Eta;", "Η");
-        replace_inplace(string, "&Theta;", "Θ");
-        replace_inplace(string, "&Iota;", "Ι");
-        replace_inplace(string, "&Kappa;", "Κ");
-        replace_inplace(string, "&Lambda;", "Λ");
-        replace_inplace(string, "&Mu;", "Μ");
-        replace_inplace(string, "&Nu;", "Ν");
-        replace_inplace(string, "&Xi;", "Ξ");
-        replace_inplace(string, "&Omicron;", "Ο");
-        replace_inplace(string, "&Pi;", "Π");
-        replace_inplace(string, "&Rho;", "Ρ");
-        replace_inplace(string, "&Sigma;", "Σ");
-        replace_inplace(string, "&Tau;", "Τ");
-        replace_inplace(string, "&Upsilon;", "Υ");
-        replace_inplace(string, "&Phi;", "Φ");
-        replace_inplace(string, "&Chi;", "Χ");
-        replace_inplace(string, "&Psi;", "Ψ");
-        replace_inplace(string, "&Omega;", "Ω");
-        replace_inplace(string, "&alpha;", "α");
-        replace_inplace(string, "&beta;", "β");
-        replace_inplace(string, "&gamma;", "γ");
-        replace_inplace(string, "&delta;", "δ");
-        replace_inplace(string, "&epsilon;", "ε");
-        replace_inplace(string, "&zeta;", "ζ");
-        replace_inplace(string, "&eta;", "η");
-        replace_inplace(string, "&theta;", "θ");
-        replace_inplace(string, "&iota;", "ι");
-        replace_inplace(string, "&kappa;", "κ");
-        replace_inplace(string, "&lambda;", "λ");
-        replace_inplace(string, "&mu;", "μ");
-        replace_inplace(string, "&nu;", "ν");
-        replace_inplace(string, "&xi;", "ξ");
-        replace_inplace(string, "&omicron;", "ο");
-        replace_inplace(string, "&pi;", "π");
-        replace_inplace(string, "&rho;", "ρ");
-        replace_inplace(string, "&sigmaf;", "ς");
-        replace_inplace(string, "&sigma;", "σ");
-        replace_inplace(string, "&tau;", "τ");
-        replace_inplace(string, "&upsilon;", "υ");
-        replace_inplace(string, "&phi;", "φ");
-        replace_inplace(string, "&chi;", "χ");
-        replace_inplace(string, "&psi;", "ψ");
-        replace_inplace(string, "&omega;", "ω");
-        replace_inplace(string, "&thetasym;", "ϑ");
-        replace_inplace(string, "&upsih;", "ϒ");
-        replace_inplace(string, "&piv;", "ϖ");
-        replace_inplace(string, "&ensp;", " ");
-        replace_inplace(string, "&emsp;", " ");
-        replace_inplace(string, "&thinsp;", " ");
-        replace_inplace(string, "&zwnj;", "‌");
-        replace_inplace(string, "&zwj;", "‍");
-        replace_inplace(string, "&lrm;", "‎");
-        replace_inplace(string, "&rlm;", "‏");
-        replace_inplace(string, "&ndash;", "–");
-        replace_inplace(string, "&mdash;", "—");
-        replace_inplace(string, "&lsquo;", "‘");
-        replace_inplace(string, "&rsquo;", "’");
-        replace_inplace(string, "&sbquo;", "‚");
-        replace_inplace(string, "&ldquo;", "“");
-        replace_inplace(string, "&rdquo;", "”");
-        replace_inplace(string, "&bdquo;", "„");
-        replace_inplace(string, "&dagger;", "†");
-        replace_inplace(string, "&Dagger;", "‡");
-        replace_inplace(string, "&bull;", "•");
-        replace_inplace(string, "&hellip;", "…");
-        replace_inplace(string, "&permil;", "‰");
-        replace_inplace(string, "&prime;", "′");
-        replace_inplace(string, "&Prime;", "″");
-        replace_inplace(string, "&lsaquo;", "‹");
-        replace_inplace(string, "&rsaquo;", "›");
-        replace_inplace(string, "&oline;", "‾");
-        replace_inplace(string, "&frasl;", "⁄");
-        replace_inplace(string, "&euro;", "€");
-        replace_inplace(string, "&image;", "ℑ");
-        replace_inplace(string, "&weierp;", "℘");
-        replace_inplace(string, "&real;", "ℜ");
-        replace_inplace(string, "&trade;", "™");
-        replace_inplace(string, "&alefsym;", "ℵ");
-        replace_inplace(string, "&larr;", "←");
-        replace_inplace(string, "&uarr;", "↑");
-        replace_inplace(string, "&rarr;", "→");
-        replace_inplace(string, "&darr;", "↓");
-        replace_inplace(string, "&harr;", "↔");
-        replace_inplace(string, "&crarr;", "↵");
-        replace_inplace(string, "&lArr;", "⇐");
-        replace_inplace(string, "&uArr;", "⇑");
-        replace_inplace(string, "&rArr;", "⇒");
-        replace_inplace(string, "&dArr;", "⇓");
-        replace_inplace(string, "&hArr;", "⇔");
-        replace_inplace(string, "&forall;", "∀");
-        replace_inplace(string, "&part;", "∂");
-        replace_inplace(string, "&exist;", "∃");
-        replace_inplace(string, "&empty;", "∅");
-        replace_inplace(string, "&nabla;", "∇");
-        replace_inplace(string, "&isin;", "∈");
-        replace_inplace(string, "&notin;", "∉");
-        replace_inplace(string, "&ni;", "∋");
-        replace_inplace(string, "&prod;", "∏");
-        replace_inplace(string, "&sum;", "∑");
-        replace_inplace(string, "&minus;", "−");
-        replace_inplace(string, "&lowast;", "∗");
-        replace_inplace(string, "&radic;", "√");
-        replace_inplace(string, "&prop;", "∝");
-        replace_inplace(string, "&infin;", "∞");
-        replace_inplace(string, "&ang;", "∠");
-        replace_inplace(string, "&and;", "∧");
-        replace_inplace(string, "&or;", "∨");
-        replace_inplace(string, "&cap;", "∩");
-        replace_inplace(string, "&cup;", "∪");
-        replace_inplace(string, "&int;", "∫");
-        replace_inplace(string, "&there4;", "∴");
-        replace_inplace(string, "&sim;", "∼");
-        replace_inplace(string, "&cong;", "≅");
-        replace_inplace(string, "&asymp;", "≈");
-        replace_inplace(string, "&ne;", "≠");
-        replace_inplace(string, "&equiv;", "≡");
-        replace_inplace(string, "&le;", "≤");
-        replace_inplace(string, "&ge;", "≥");
-        replace_inplace(string, "&sub;", "⊂");
-        replace_inplace(string, "&sup;", "⊃");
-        replace_inplace(string, "&nsub;", "⊄");
-        replace_inplace(string, "&sube;", "⊆");
-        replace_inplace(string, "&supe;", "⊇");
-        replace_inplace(string, "&oplus;", "⊕");
-        replace_inplace(string, "&otimes;", "⊗");
-        replace_inplace(string, "&perp;", "⊥");
-        replace_inplace(string, "&sdot;", "⋅");
-        replace_inplace(string, "&lceil;", "⌈");
-        replace_inplace(string, "&rceil;", "⌉");
-        replace_inplace(string, "&lfloor;", "⌊");
-        replace_inplace(string, "&rfloor;", "⌋");
-        replace_inplace(string, "&loz;", "◊");
-        replace_inplace(string, "&spades;", "♠");
-        replace_inplace(string, "&clubs;", "♣");
-        replace_inplace(string, "&hearts;", "♥");
-        replace_inplace(string, "&diams;", "♦");
-        replace_inplace(string, "&lang;", "⟨");
-        replace_inplace(string, "&rang;", "⟩");
-    }
+void string_destroy(char *string) {
+    free(string);
 }
 
-void deci_unicode_converter(char *string) {
-    while (strstr(string, "&#34") != NULL || strstr(string, "&#38") != NULL || strstr(string, "&#39") != NULL || strstr(string, "&#60") != NULL || strstr(string, "&#62") != NULL || strstr(string, "&#160") != NULL || strstr(string, "&#161") != NULL || strstr(string, "&#162") != NULL || strstr(string, "&#163") != NULL || strstr(string, "&#164") != NULL || strstr(string, "&#165") != NULL || strstr(string, "&#166") != NULL || strstr(string, "&#167") != NULL || strstr(string, "&#168") != NULL || strstr(string, "&#169") != NULL || strstr(string, "&#170") != NULL || strstr(string, "&#171") != NULL || strstr(string, "&#172") != NULL || strstr(string, "&#173") != NULL || strstr(string, "&#174") != NULL || strstr(string, "&#175") != NULL || strstr(string, "&#176") != NULL || strstr(string, "&#177") != NULL || strstr(string, "&#178") != NULL || strstr(string, "&#179") != NULL || strstr(string, "&#180") != NULL || strstr(string, "&#181") != NULL || strstr(string, "&#182") != NULL || strstr(string, "&#183") != NULL || strstr(string, "&#184") != NULL || strstr(string, "&#185") != NULL || strstr(string, "&#186") != NULL || strstr(string, "&#187") != NULL || strstr(string, "&#188") != NULL || strstr(string, "&#189") != NULL || strstr(string, "&#190") != NULL || strstr(string, "&#191") != NULL || strstr(string, "&#192") != NULL || strstr(string, "&#193") != NULL || strstr(string, "&#194") != NULL || strstr(string, "&#195") != NULL || strstr(string, "&#196") != NULL || strstr(string, "&#197") != NULL || strstr(string, "&#198") != NULL || strstr(string, "&#199") != NULL || strstr(string, "&#200") != NULL || strstr(string, "&#201") != NULL || strstr(string, "&#202") != NULL || strstr(string, "&#203") != NULL || strstr(string, "&#204") != NULL || strstr(string, "&#205") != NULL || strstr(string, "&#206") != NULL || strstr(string, "&#207") != NULL || strstr(string, "&#208") != NULL || strstr(string, "&#209") != NULL || strstr(string, "&#210") != NULL || strstr(string, "&#211") != NULL || strstr(string, "&#212") != NULL || strstr(string, "&#213") != NULL || strstr(string, "&#214") != NULL || strstr(string, "&#215") != NULL || strstr(string, "&#216") != NULL || strstr(string, "&#217") != NULL || strstr(string, "&#218") != NULL || strstr(string, "&#219") != NULL || strstr(string, "&#220") != NULL || strstr(string, "&#221") != NULL || strstr(string, "&#222") != NULL || strstr(string, "&#223") != NULL || strstr(string, "&#224") != NULL || strstr(string, "&#225") != NULL || strstr(string, "&#226") != NULL || strstr(string, "&#227") != NULL || strstr(string, "&#228") != NULL || strstr(string, "&#229") != NULL || strstr(string, "&#230") != NULL || strstr(string, "&#231") != NULL || strstr(string, "&#232") != NULL || strstr(string, "&#233") != NULL || strstr(string, "&#234") != NULL || strstr(string, "&#235") != NULL || strstr(string, "&#236") != NULL || strstr(string, "&#237") != NULL || strstr(string, "&#238") != NULL || strstr(string, "&#239") != NULL || strstr(string, "&#240") != NULL || strstr(string, "&#241") != NULL || strstr(string, "&#242") != NULL || strstr(string, "&#243") != NULL || strstr(string, "&#244") != NULL || strstr(string, "&#245") != NULL || strstr(string, "&#246") != NULL || strstr(string, "&#247") != NULL || strstr(string, "&#248") != NULL || strstr(string, "&#249") != NULL || strstr(string, "&#250") != NULL || strstr(string, "&#251") != NULL || strstr(string, "&#252") != NULL || strstr(string, "&#253") != NULL || strstr(string, "&#254") != NULL || strstr(string, "&#255") != NULL || strstr(string, "&#338") != NULL || strstr(string, "&#339") != NULL || strstr(string, "&#352") != NULL || strstr(string, "&#353") != NULL || strstr(string, "&#376") != NULL || strstr(string, "&#402") != NULL || strstr(string, "&#710") != NULL || strstr(string, "&#732") != NULL || strstr(string, "&#913") != NULL || strstr(string, "&#914") != NULL || strstr(string, "&#915") != NULL || strstr(string, "&#916") != NULL || strstr(string, "&#917") != NULL || strstr(string, "&#918") != NULL || strstr(string, "&#919") != NULL || strstr(string, "&#920") != NULL || strstr(string, "&#921") != NULL || strstr(string, "&#922") != NULL || strstr(string, "&#923") != NULL || strstr(string, "&#924") != NULL || strstr(string, "&#925") != NULL || strstr(string, "&#926") != NULL || strstr(string, "&#927") != NULL || strstr(string, "&#928") != NULL || strstr(string, "&#929") != NULL || strstr(string, "&#931") != NULL || strstr(string, "&#932") != NULL || strstr(string, "&#933") != NULL || strstr(string, "&#934") != NULL || strstr(string, "&#935") != NULL || strstr(string, "&#936") != NULL || strstr(string, "&#937") != NULL || strstr(string, "&#945") != NULL || strstr(string, "&#946") != NULL || strstr(string, "&#947") != NULL || strstr(string, "&#948") != NULL || strstr(string, "&#949") != NULL || strstr(string, "&#950") != NULL || strstr(string, "&#951") != NULL || strstr(string, "&#952") != NULL || strstr(string, "&#953") != NULL || strstr(string, "&#954") != NULL || strstr(string, "&#955") != NULL || strstr(string, "&#956") != NULL || strstr(string, "&#957") != NULL || strstr(string, "&#958") != NULL || strstr(string, "&#959") != NULL || strstr(string, "&#960") != NULL || strstr(string, "&#961") != NULL || strstr(string, "&#962") != NULL || strstr(string, "&#963") != NULL || strstr(string, "&#964") != NULL || strstr(string, "&#965") != NULL || strstr(string, "&#966") != NULL || strstr(string, "&#967") != NULL || strstr(string, "&#968") != NULL || strstr(string, "&#969") != NULL || strstr(string, "&#977") != NULL || strstr(string, "&#978") != NULL || strstr(string, "&#982") != NULL || strstr(string, "&#8194") != NULL || strstr(string, "&#8195") != NULL || strstr(string, "&#8201") != NULL || strstr(string, "&#8204") != NULL || strstr(string, "&#8205") != NULL || strstr(string, "&#8206") != NULL || strstr(string, "&#8207") != NULL || strstr(string, "&#8211") != NULL || strstr(string, "&#8212") != NULL || strstr(string, "&#8216") != NULL || strstr(string, "&#8217") != NULL || strstr(string, "&#8218") != NULL || strstr(string, "&#8220") != NULL || strstr(string, "&#8221") != NULL || strstr(string, "&#8222") != NULL || strstr(string, "&#8224") != NULL || strstr(string, "&#8225") != NULL || strstr(string, "&#8226") != NULL || strstr(string, "&#8230") != NULL || strstr(string, "&#8240") != NULL || strstr(string, "&#8242") != NULL || strstr(string, "&#8243") != NULL || strstr(string, "&#8249") != NULL || strstr(string, "&#8250") != NULL || strstr(string, "&#8254") != NULL || strstr(string, "&#8260") != NULL || strstr(string, "&#8364") != NULL || strstr(string, "&#8465") != NULL || strstr(string, "&#8472") != NULL || strstr(string, "&#8476") != NULL || strstr(string, "&#8482") != NULL || strstr(string, "&#8501") != NULL || strstr(string, "&#8592") != NULL || strstr(string, "&#8593") != NULL || strstr(string, "&#8594") != NULL || strstr(string, "&#8595") != NULL || strstr(string, "&#8596") != NULL || strstr(string, "&#8629") != NULL || strstr(string, "&#8656") != NULL || strstr(string, "&#8657") != NULL || strstr(string, "&#8658") != NULL || strstr(string, "&#8659") != NULL || strstr(string, "&#8660") != NULL || strstr(string, "&#8704") != NULL || strstr(string, "&#8706") != NULL || strstr(string, "&#8707") != NULL || strstr(string, "&#8709") != NULL || strstr(string, "&#8711") != NULL || strstr(string, "&#8712") != NULL || strstr(string, "&#8713") != NULL || strstr(string, "&#8715") != NULL || strstr(string, "&#8719") != NULL || strstr(string, "&#8721") != NULL || strstr(string, "&#8722") != NULL || strstr(string, "&#8727") != NULL || strstr(string, "&#8730") != NULL || strstr(string, "&#8733") != NULL || strstr(string, "&#8734") != NULL || strstr(string, "&#8736") != NULL || strstr(string, "&#8743") != NULL || strstr(string, "&#8744") != NULL || strstr(string, "&#8745") != NULL || strstr(string, "&#8746") != NULL || strstr(string, "&#8747") != NULL || strstr(string, "&#8756") != NULL || strstr(string, "&#8764") != NULL || strstr(string, "&#8773") != NULL || strstr(string, "&#8776") != NULL || strstr(string, "&#8800") != NULL || strstr(string, "&#8801") != NULL || strstr(string, "&#8804") != NULL || strstr(string, "&#8805") != NULL || strstr(string, "&#8834") != NULL || strstr(string, "&#8835") != NULL || strstr(string, "&#8836") != NULL || strstr(string, "&#8838") != NULL || strstr(string, "&#8839") != NULL || strstr(string, "&#8853") != NULL || strstr(string, "&#8855") != NULL || strstr(string, "&#8869") != NULL || strstr(string, "&#8901") != NULL || strstr(string, "&#8968") != NULL || strstr(string, "&#8969") != NULL || strstr(string, "&#8970") != NULL || strstr(string, "&#8971") != NULL || strstr(string, "&#9674") != NULL || strstr(string, "&#9824") != NULL || strstr(string, "&#9827") != NULL || strstr(string, "&#9829") != NULL || strstr(string, "&#9830") != NULL || strstr(string, "&#10216") != NULL || strstr(string, "&#10217") != NULL) {
-        replace_inplace(string, "&#34", "\"");
-        replace_inplace(string, "&#38", "&");
-        replace_inplace(string, "&#39", "'");
-        replace_inplace(string, "&#60", "<");
-        replace_inplace(string, "&#62", ">");
-        replace_inplace(string, "&#160", " ");
-        replace_inplace(string, "&#161", "¡");
-        replace_inplace(string, "&#162", "¢");
-        replace_inplace(string, "&#163", "£");
-        replace_inplace(string, "&#164", "¤");
-        replace_inplace(string, "&#165", "¥");
-        replace_inplace(string, "&#166", "¦");
-        replace_inplace(string, "&#167", "§");
-        replace_inplace(string, "&#168", "¨");
-        replace_inplace(string, "&#169", "©");
-        replace_inplace(string, "&#170", "ª");
-        replace_inplace(string, "&#171", "«");
-        replace_inplace(string, "&#172", "¬");
-        replace_inplace(string, "&#173", "­");
-        replace_inplace(string, "&#174", "®");
-        replace_inplace(string, "&#175", "¯");
-        replace_inplace(string, "&#176", "°");
-        replace_inplace(string, "&#177", "±");
-        replace_inplace(string, "&#178", "²");
-        replace_inplace(string, "&#179", "³");
-        replace_inplace(string, "&#180", "´");
-        replace_inplace(string, "&#181", "µ");
-        replace_inplace(string, "&#182", "¶");
-        replace_inplace(string, "&#183", "·");
-        replace_inplace(string, "&#184", "¸");
-        replace_inplace(string, "&#185", "¹");
-        replace_inplace(string, "&#186", "º");
-        replace_inplace(string, "&#187", "»");
-        replace_inplace(string, "&#188", "¼");
-        replace_inplace(string, "&#189", "½");
-        replace_inplace(string, "&#190", "¾");
-        replace_inplace(string, "&#191", "¿");
-        replace_inplace(string, "&#192", "À");
-        replace_inplace(string, "&#193", "Á");
-        replace_inplace(string, "&#194", "Â");
-        replace_inplace(string, "&#195", "Ã");
-        replace_inplace(string, "&#196", "Ä");
-        replace_inplace(string, "&#197", "Å");
-        replace_inplace(string, "&#198", "Æ");
-        replace_inplace(string, "&#199", "Ç");
-        replace_inplace(string, "&#200", "È");
-        replace_inplace(string, "&#201", "É");
-        replace_inplace(string, "&#202", "Ê");
-        replace_inplace(string, "&#203", "Ë");
-        replace_inplace(string, "&#204", "Ì");
-        replace_inplace(string, "&#205", "Í");
-        replace_inplace(string, "&#206", "Î");
-        replace_inplace(string, "&#207", "Ï");
-        replace_inplace(string, "&#208", "Ð");
-        replace_inplace(string, "&#209", "Ñ");
-        replace_inplace(string, "&#210", "Ò");
-        replace_inplace(string, "&#211", "Ó");
-        replace_inplace(string, "&#212", "Ô");
-        replace_inplace(string, "&#213", "Õ");
-        replace_inplace(string, "&#214", "Ö");
-        replace_inplace(string, "&#215", "×");
-        replace_inplace(string, "&#216", "Ø");
-        replace_inplace(string, "&#217", "Ù");
-        replace_inplace(string, "&#218", "Ú");
-        replace_inplace(string, "&#219", "Û");
-        replace_inplace(string, "&#220", "Ü");
-        replace_inplace(string, "&#221", "Ý");
-        replace_inplace(string, "&#222", "Þ");
-        replace_inplace(string, "&#223", "ß");
-        replace_inplace(string, "&#224", "à");
-        replace_inplace(string, "&#225", "á");
-        replace_inplace(string, "&#226", "â");
-        replace_inplace(string, "&#227", "ã");
-        replace_inplace(string, "&#228", "ä");
-        replace_inplace(string, "&#229", "å");
-        replace_inplace(string, "&#230", "æ");
-        replace_inplace(string, "&#231", "ç");
-        replace_inplace(string, "&#232", "è");
-        replace_inplace(string, "&#233", "é");
-        replace_inplace(string, "&#234", "ê");
-        replace_inplace(string, "&#235", "ë");
-        replace_inplace(string, "&#236", "ì");
-        replace_inplace(string, "&#237", "í");
-        replace_inplace(string, "&#238", "î");
-        replace_inplace(string, "&#239", "ï");
-        replace_inplace(string, "&#240", "ð");
-        replace_inplace(string, "&#241", "ñ");
-        replace_inplace(string, "&#242", "ò");
-        replace_inplace(string, "&#243", "ó");
-        replace_inplace(string, "&#244", "ô");
-        replace_inplace(string, "&#245", "õ");
-        replace_inplace(string, "&#246", "ö");
-        replace_inplace(string, "&#247", "÷");
-        replace_inplace(string, "&#248", "ø");
-        replace_inplace(string, "&#249", "ù");
-        replace_inplace(string, "&#250", "ú");
-        replace_inplace(string, "&#251", "û");
-        replace_inplace(string, "&#252", "ü");
-        replace_inplace(string, "&#253", "ý");
-        replace_inplace(string, "&#254", "þ");
-        replace_inplace(string, "&#255", "ÿ");
-        replace_inplace(string, "&#338", "Œ");
-        replace_inplace(string, "&#339", "œ");
-        replace_inplace(string, "&#352", "Š");
-        replace_inplace(string, "&#353", "š");
-        replace_inplace(string, "&#376", "Ÿ");
-        replace_inplace(string, "&#402", "ƒ");
-        replace_inplace(string, "&#710", "ˆ");
-        replace_inplace(string, "&#732", "˜");
-        replace_inplace(string, "&#913", "Α");
-        replace_inplace(string, "&#914", "Β");
-        replace_inplace(string, "&#915", "Γ");
-        replace_inplace(string, "&#916", "Δ");
-        replace_inplace(string, "&#917", "Ε");
-        replace_inplace(string, "&#918", "Ζ");
-        replace_inplace(string, "&#919", "Η");
-        replace_inplace(string, "&#920", "Θ");
-        replace_inplace(string, "&#921", "Ι");
-        replace_inplace(string, "&#922", "Κ");
-        replace_inplace(string, "&#923", "Λ");
-        replace_inplace(string, "&#924", "Μ");
-        replace_inplace(string, "&#925", "Ν");
-        replace_inplace(string, "&#926", "Ξ");
-        replace_inplace(string, "&#927", "Ο");
-        replace_inplace(string, "&#928", "Π");
-        replace_inplace(string, "&#929", "Ρ");
-        replace_inplace(string, "&#931", "Σ");
-        replace_inplace(string, "&#932", "Τ");
-        replace_inplace(string, "&#933", "Υ");
-        replace_inplace(string, "&#934", "Φ");
-        replace_inplace(string, "&#935", "Χ");
-        replace_inplace(string, "&#936", "Ψ");
-        replace_inplace(string, "&#937", "Ω");
-        replace_inplace(string, "&#945", "α");
-        replace_inplace(string, "&#946", "β");
-        replace_inplace(string, "&#947", "γ");
-        replace_inplace(string, "&#948", "δ");
-        replace_inplace(string, "&#949", "ε");
-        replace_inplace(string, "&#950", "ζ");
-        replace_inplace(string, "&#951", "η");
-        replace_inplace(string, "&#952", "θ");
-        replace_inplace(string, "&#953", "ι");
-        replace_inplace(string, "&#954", "κ");
-        replace_inplace(string, "&#955", "λ");
-        replace_inplace(string, "&#956", "μ");
-        replace_inplace(string, "&#957", "ν");
-        replace_inplace(string, "&#958", "ξ");
-        replace_inplace(string, "&#959", "ο");
-        replace_inplace(string, "&#960", "π");
-        replace_inplace(string, "&#961", "ρ");
-        replace_inplace(string, "&#962", "ς");
-        replace_inplace(string, "&#963", "σ");
-        replace_inplace(string, "&#964", "τ");
-        replace_inplace(string, "&#965", "υ");
-        replace_inplace(string, "&#966", "φ");
-        replace_inplace(string, "&#967", "χ");
-        replace_inplace(string, "&#968", "ψ");
-        replace_inplace(string, "&#969", "ω");
-        replace_inplace(string, "&#977", "ϑ");
-        replace_inplace(string, "&#978", "ϒ");
-        replace_inplace(string, "&#982", "ϖ");
-        replace_inplace(string, "&#8194", " ");
-        replace_inplace(string, "&#8195", " ");
-        replace_inplace(string, "&#8201", " ");
-        replace_inplace(string, "&#8204", "‌");
-        replace_inplace(string, "&#8205", "‍");
-        replace_inplace(string, "&#8206", "‎");
-        replace_inplace(string, "&#8207", "‏");
-        replace_inplace(string, "&#8211", "–");
-        replace_inplace(string, "&#8212", "—");
-        replace_inplace(string, "&#8216", "‘");
-        replace_inplace(string, "&#8217", "’");
-        replace_inplace(string, "&#8218", "‚");
-        replace_inplace(string, "&#8220", "“");
-        replace_inplace(string, "&#8221", "”");
-        replace_inplace(string, "&#8222", "„");
-        replace_inplace(string, "&#8224", "†");
-        replace_inplace(string, "&#8225", "‡");
-        replace_inplace(string, "&#8226", "•");
-        replace_inplace(string, "&#8230", "…");
-        replace_inplace(string, "&#8240", "‰");
-        replace_inplace(string, "&#8242", "′");
-        replace_inplace(string, "&#8243", "″");
-        replace_inplace(string, "&#8249", "‹");
-        replace_inplace(string, "&#8250", "›");
-        replace_inplace(string, "&#8254", "‾");
-        replace_inplace(string, "&#8260", "⁄");
-        replace_inplace(string, "&#8364", "€");
-        replace_inplace(string, "&#8465", "ℑ");
-        replace_inplace(string, "&#8472", "℘");
-        replace_inplace(string, "&#8476", "ℜ");
-        replace_inplace(string, "&#8482", "™");
-        replace_inplace(string, "&#8501", "ℵ");
-        replace_inplace(string, "&#8592", "←");
-        replace_inplace(string, "&#8593", "↑");
-        replace_inplace(string, "&#8594", "→");
-        replace_inplace(string, "&#8595", "↓");
-        replace_inplace(string, "&#8596", "↔");
-        replace_inplace(string, "&#8629", "↵");
-        replace_inplace(string, "&#8656", "⇐");
-        replace_inplace(string, "&#8657", "⇑");
-        replace_inplace(string, "&#8658", "⇒");
-        replace_inplace(string, "&#8659", "⇓");
-        replace_inplace(string, "&#8660", "⇔");
-        replace_inplace(string, "&#8704", "∀");
-        replace_inplace(string, "&#8706", "∂");
-        replace_inplace(string, "&#8707", "∃");
-        replace_inplace(string, "&#8709", "∅");
-        replace_inplace(string, "&#8711", "∇");
-        replace_inplace(string, "&#8712", "∈");
-        replace_inplace(string, "&#8713", "∉");
-        replace_inplace(string, "&#8715", "∋");
-        replace_inplace(string, "&#8719", "∏");
-        replace_inplace(string, "&#8721", "∑");
-        replace_inplace(string, "&#8722", "−");
-        replace_inplace(string, "&#8727", "∗");
-        replace_inplace(string, "&#8730", "√");
-        replace_inplace(string, "&#8733", "∝");
-        replace_inplace(string, "&#8734", "∞");
-        replace_inplace(string, "&#8736", "∠");
-        replace_inplace(string, "&#8743", "∧");
-        replace_inplace(string, "&#8744", "∨");
-        replace_inplace(string, "&#8745", "∩");
-        replace_inplace(string, "&#8746", "∪");
-        replace_inplace(string, "&#8747", "∫");
-        replace_inplace(string, "&#8756", "∴");
-        replace_inplace(string, "&#8764", "∼");
-        replace_inplace(string, "&#8773", "≅");
-        replace_inplace(string, "&#8776", "≈");
-        replace_inplace(string, "&#8800", "≠");
-        replace_inplace(string, "&#8801", "≡");
-        replace_inplace(string, "&#8804", "≤");
-        replace_inplace(string, "&#8805", "≥");
-        replace_inplace(string, "&#8834", "⊂");
-        replace_inplace(string, "&#8835", "⊃");
-        replace_inplace(string, "&#8836", "⊄");
-        replace_inplace(string, "&#8838", "⊆");
-        replace_inplace(string, "&#8839", "⊇");
-        replace_inplace(string, "&#8853", "⊕");
-        replace_inplace(string, "&#8855", "⊗");
-        replace_inplace(string, "&#8869", "⊥");
-        replace_inplace(string, "&#8901", "⋅");
-        replace_inplace(string, "&#8968", "⌈");
-        replace_inplace(string, "&#8969", "⌉");
-        replace_inplace(string, "&#8970", "⌊");
-        replace_inplace(string, "&#8971", "⌋");
-        replace_inplace(string, "&#9674", "◊");
-        replace_inplace(string, "&#9824", "♠");
-        replace_inplace(string, "&#9827", "♣");
-        replace_inplace(string, "&#9829", "♥");
-        replace_inplace(string, "&#9830", "♦");
-        replace_inplace(string, "&#10216", "⟨");
-        replace_inplace(string, "&#10217", "⟩");
-    }
-}
-
-void destroy_strings(int count, ...) {
+void strings_destroy(int count, ...) {
     va_list args;
     va_start(args, count);
 
@@ -748,6 +173,600 @@ void destroy_strings(int count, ...) {
     }
 }
 
+
+
+char *replace_all_char(char *string, char find, char replace) {
+    for (int i = 0; i < (int) strlen(string); i++) {
+        if (string[i] == find) {
+            string[i] = replace;
+        }
+    }
+
+    return string;
+}
+
+char *replace_all_string(char *string, char *find, char *replace) {
+    char *temp = NULL;
+
+    while ((temp = strstr(string, find)) != NULL) {
+        int index = temp - string;
+        int length = strlen(string) - strlen(find) + strlen(replace) + 1;
+
+        char *new = (char *) malloc(sizeof(char) * length);
+        strncpy(new, string, index);
+        strcpy(new + index, replace);
+        strcpy(new + index + strlen(replace), string + index + strlen(find));
+
+        free(string);
+        string = new;
+    }
+
+    return string;
+}
+
+
+
+char *remove_all_char(char *string, char find) {
+    char *temp = NULL;
+
+    while ((temp = strchr(string, find)) != NULL) {
+        int index = temp - string;
+        int length = strlen(string);
+
+        char *new = (char *) malloc(sizeof(char) * length);
+        strncpy(new, string, index);
+        strcpy(new + index, string + index + 1);
+
+        free(string);
+        string = new;
+    }
+
+    return string;
+}
+
+char *remove_all_string(char *string, char *find) {
+    char *temp = NULL;
+
+    while ((temp = strstr(string, find)) != NULL) {
+        int index = temp - string;
+        int length = strlen(string) - strlen(find) + 1;
+
+        char *new = (char *) malloc(sizeof(char) * length);
+        strncpy(new, string, index);
+        strcpy(new + index, string + index + strlen(find));
+
+        free(string);
+        string = new;
+    }
+
+    return string;
+}
+
+
+
+char *html_unicode_converter(char *string) {
+    string = replace_all(string, "&quot;", "\"");
+    string = replace_all(string, "&amp;", "&");
+    string = replace_all(string, "&apos;", "'");
+    string = replace_all(string, "&lt;", "<");
+    string = replace_all(string, "&gt;", ">");
+    string = replace_all(string, "&nbsp;", " ");
+    string = replace_all(string, "&iexcl;", "¡");
+    string = replace_all(string, "&cent;", "¢");
+    string = replace_all(string, "&pound;", "£");
+    string = replace_all(string, "&curren;", "¤");
+    string = replace_all(string, "&yen;", "¥");
+    string = replace_all(string, "&brvbar;", "¦");
+    string = replace_all(string, "&sect;", "§");
+    string = replace_all(string, "&uml;", "¨");
+    string = replace_all(string, "&copy;", "©");
+    string = replace_all(string, "&ordf;", "ª");
+    string = replace_all(string, "&laquo;", "«");
+    string = replace_all(string, "&not;", "¬");
+    string = replace_all(string, "&shy;", "­");
+    string = replace_all(string, "&reg;", "®");
+    string = replace_all(string, "&macr;", "¯");
+    string = replace_all(string, "&deg;", "°");
+    string = replace_all(string, "&plusmn;", "±");
+    string = replace_all(string, "&sup2;", "²");
+    string = replace_all(string, "&sup3;", "³");
+    string = replace_all(string, "&acute;", "´");
+    string = replace_all(string, "&micro;", "µ");
+    string = replace_all(string, "&para;", "¶");
+    string = replace_all(string, "&middot;", "·");
+    string = replace_all(string, "&cedil;", "¸");
+    string = replace_all(string, "&sup1;", "¹");
+    string = replace_all(string, "&ordm;", "º");
+    string = replace_all(string, "&raquo;", "»");
+    string = replace_all(string, "&frac14;", "¼");
+    string = replace_all(string, "&frac12;", "½");
+    string = replace_all(string, "&frac34;", "¾");
+    string = replace_all(string, "&iquest;", "¿");
+    string = replace_all(string, "&Agrave;", "À");
+    string = replace_all(string, "&Aacute;", "Á");
+    string = replace_all(string, "&Acirc;", "Â");
+    string = replace_all(string, "&Atilde;", "Ã");
+    string = replace_all(string, "&Auml;", "Ä");
+    string = replace_all(string, "&Aring;", "Å");
+    string = replace_all(string, "&AElig;", "Æ");
+    string = replace_all(string, "&Ccedil;", "Ç");
+    string = replace_all(string, "&Egrave;", "È");
+    string = replace_all(string, "&Eacute;", "É");
+    string = replace_all(string, "&Ecirc;", "Ê");
+    string = replace_all(string, "&Euml;", "Ë");
+    string = replace_all(string, "&Igrave;", "Ì");
+    string = replace_all(string, "&Iacute;", "Í");
+    string = replace_all(string, "&Icirc;", "Î");
+    string = replace_all(string, "&Iuml;", "Ï");
+    string = replace_all(string, "&ETH;", "Ð");
+    string = replace_all(string, "&Ntilde;", "Ñ");
+    string = replace_all(string, "&Ograve;", "Ò");
+    string = replace_all(string, "&Oacute;", "Ó");
+    string = replace_all(string, "&Ocirc;", "Ô");
+    string = replace_all(string, "&Otilde;", "Õ");
+    string = replace_all(string, "&Ouml;", "Ö");
+    string = replace_all(string, "&times;", "×");
+    string = replace_all(string, "&Oslash;", "Ø");
+    string = replace_all(string, "&Ugrave;", "Ù");
+    string = replace_all(string, "&Uacute;", "Ú");
+    string = replace_all(string, "&Ucirc;", "Û");
+    string = replace_all(string, "&Uuml;", "Ü");
+    string = replace_all(string, "&Yacute;", "Ý");
+    string = replace_all(string, "&THORN;", "Þ");
+    string = replace_all(string, "&szlig;", "ß");
+    string = replace_all(string, "&agrave;", "à");
+    string = replace_all(string, "&aacute;", "á");
+    string = replace_all(string, "&acirc;", "â");
+    string = replace_all(string, "&atilde;", "ã");
+    string = replace_all(string, "&auml;", "ä");
+    string = replace_all(string, "&aring;", "å");
+    string = replace_all(string, "&aelig;", "æ");
+    string = replace_all(string, "&ccedil;", "ç");
+    string = replace_all(string, "&egrave;", "è");
+    string = replace_all(string, "&eacute;", "é");
+    string = replace_all(string, "&ecirc;", "ê");
+    string = replace_all(string, "&euml;", "ë");
+    string = replace_all(string, "&igrave;", "ì");
+    string = replace_all(string, "&iacute;", "í");
+    string = replace_all(string, "&icirc;", "î");
+    string = replace_all(string, "&iuml;", "ï");
+    string = replace_all(string, "&eth;", "ð");
+    string = replace_all(string, "&ntilde;", "ñ");
+    string = replace_all(string, "&ograve;", "ò");
+    string = replace_all(string, "&oacute;", "ó");
+    string = replace_all(string, "&ocirc;", "ô");
+    string = replace_all(string, "&otilde;", "õ");
+    string = replace_all(string, "&ouml;", "ö");
+    string = replace_all(string, "&divide;", "÷");
+    string = replace_all(string, "&oslash;", "ø");
+    string = replace_all(string, "&ugrave;", "ù");
+    string = replace_all(string, "&uacute;", "ú");
+    string = replace_all(string, "&ucirc;", "û");
+    string = replace_all(string, "&uuml;", "ü");
+    string = replace_all(string, "&yacute;", "ý");
+    string = replace_all(string, "&thorn;", "þ");
+    string = replace_all(string, "&yuml;", "ÿ");
+    string = replace_all(string, "&OElig;", "Œ");
+    string = replace_all(string, "&oelig;", "œ");
+    string = replace_all(string, "&Scaron;", "Š");
+    string = replace_all(string, "&scaron;", "š");
+    string = replace_all(string, "&Yuml;", "Ÿ");
+    string = replace_all(string, "&fnof;", "ƒ");
+    string = replace_all(string, "&circ;", "ˆ");
+    string = replace_all(string, "&tilde;", "˜");
+    string = replace_all(string, "&Alpha;", "Α");
+    string = replace_all(string, "&Beta;", "Β");
+    string = replace_all(string, "&Gamma;", "Γ");
+    string = replace_all(string, "&Delta;", "Δ");
+    string = replace_all(string, "&Epsilon;", "Ε");
+    string = replace_all(string, "&Zeta;", "Ζ");
+    string = replace_all(string, "&Eta;", "Η");
+    string = replace_all(string, "&Theta;", "Θ");
+    string = replace_all(string, "&Iota;", "Ι");
+    string = replace_all(string, "&Kappa;", "Κ");
+    string = replace_all(string, "&Lambda;", "Λ");
+    string = replace_all(string, "&Mu;", "Μ");
+    string = replace_all(string, "&Nu;", "Ν");
+    string = replace_all(string, "&Xi;", "Ξ");
+    string = replace_all(string, "&Omicron;", "Ο");
+    string = replace_all(string, "&Pi;", "Π");
+    string = replace_all(string, "&Rho;", "Ρ");
+    string = replace_all(string, "&Sigma;", "Σ");
+    string = replace_all(string, "&Tau;", "Τ");
+    string = replace_all(string, "&Upsilon;", "Υ");
+    string = replace_all(string, "&Phi;", "Φ");
+    string = replace_all(string, "&Chi;", "Χ");
+    string = replace_all(string, "&Psi;", "Ψ");
+    string = replace_all(string, "&Omega;", "Ω");
+    string = replace_all(string, "&alpha;", "α");
+    string = replace_all(string, "&beta;", "β");
+    string = replace_all(string, "&gamma;", "γ");
+    string = replace_all(string, "&delta;", "δ");
+    string = replace_all(string, "&epsilon;", "ε");
+    string = replace_all(string, "&zeta;", "ζ");
+    string = replace_all(string, "&eta;", "η");
+    string = replace_all(string, "&theta;", "θ");
+    string = replace_all(string, "&iota;", "ι");
+    string = replace_all(string, "&kappa;", "κ");
+    string = replace_all(string, "&lambda;", "λ");
+    string = replace_all(string, "&mu;", "μ");
+    string = replace_all(string, "&nu;", "ν");
+    string = replace_all(string, "&xi;", "ξ");
+    string = replace_all(string, "&omicron;", "ο");
+    string = replace_all(string, "&pi;", "π");
+    string = replace_all(string, "&rho;", "ρ");
+    string = replace_all(string, "&sigmaf;", "ς");
+    string = replace_all(string, "&sigma;", "σ");
+    string = replace_all(string, "&tau;", "τ");
+    string = replace_all(string, "&upsilon;", "υ");
+    string = replace_all(string, "&phi;", "φ");
+    string = replace_all(string, "&chi;", "χ");
+    string = replace_all(string, "&psi;", "ψ");
+    string = replace_all(string, "&omega;", "ω");
+    string = replace_all(string, "&thetasym;", "ϑ");
+    string = replace_all(string, "&upsih;", "ϒ");
+    string = replace_all(string, "&piv;", "ϖ");
+    string = replace_all(string, "&ensp;", " ");
+    string = replace_all(string, "&emsp;", " ");
+    string = replace_all(string, "&thinsp;", " ");
+    string = replace_all(string, "&zwnj;", "‌");
+    string = replace_all(string, "&zwj;", "‍");
+    string = replace_all(string, "&lrm;", "‎");
+    string = replace_all(string, "&rlm;", "‏");
+    string = replace_all(string, "&ndash;", "–");
+    string = replace_all(string, "&mdash;", "—");
+    string = replace_all(string, "&lsquo;", "‘");
+    string = replace_all(string, "&rsquo;", "’");
+    string = replace_all(string, "&sbquo;", "‚");
+    string = replace_all(string, "&ldquo;", "“");
+    string = replace_all(string, "&rdquo;", "”");
+    string = replace_all(string, "&bdquo;", "„");
+    string = replace_all(string, "&dagger;", "†");
+    string = replace_all(string, "&Dagger;", "‡");
+    string = replace_all(string, "&bull;", "•");
+    string = replace_all(string, "&hellip;", "…");
+    string = replace_all(string, "&permil;", "‰");
+    string = replace_all(string, "&prime;", "′");
+    string = replace_all(string, "&Prime;", "″");
+    string = replace_all(string, "&lsaquo;", "‹");
+    string = replace_all(string, "&rsaquo;", "›");
+    string = replace_all(string, "&oline;", "‾");
+    string = replace_all(string, "&frasl;", "⁄");
+    string = replace_all(string, "&euro;", "€");
+    string = replace_all(string, "&image;", "ℑ");
+    string = replace_all(string, "&weierp;", "℘");
+    string = replace_all(string, "&real;", "ℜ");
+    string = replace_all(string, "&trade;", "™");
+    string = replace_all(string, "&alefsym;", "ℵ");
+    string = replace_all(string, "&larr;", "←");
+    string = replace_all(string, "&uarr;", "↑");
+    string = replace_all(string, "&rarr;", "→");
+    string = replace_all(string, "&darr;", "↓");
+    string = replace_all(string, "&harr;", "↔");
+    string = replace_all(string, "&crarr;", "↵");
+    string = replace_all(string, "&lArr;", "⇐");
+    string = replace_all(string, "&uArr;", "⇑");
+    string = replace_all(string, "&rArr;", "⇒");
+    string = replace_all(string, "&dArr;", "⇓");
+    string = replace_all(string, "&hArr;", "⇔");
+    string = replace_all(string, "&forall;", "∀");
+    string = replace_all(string, "&part;", "∂");
+    string = replace_all(string, "&exist;", "∃");
+    string = replace_all(string, "&empty;", "∅");
+    string = replace_all(string, "&nabla;", "∇");
+    string = replace_all(string, "&isin;", "∈");
+    string = replace_all(string, "&notin;", "∉");
+    string = replace_all(string, "&ni;", "∋");
+    string = replace_all(string, "&prod;", "∏");
+    string = replace_all(string, "&sum;", "∑");
+    string = replace_all(string, "&minus;", "−");
+    string = replace_all(string, "&lowast;", "∗");
+    string = replace_all(string, "&radic;", "√");
+    string = replace_all(string, "&prop;", "∝");
+    string = replace_all(string, "&infin;", "∞");
+    string = replace_all(string, "&ang;", "∠");
+    string = replace_all(string, "&and;", "∧");
+    string = replace_all(string, "&or;", "∨");
+    string = replace_all(string, "&cap;", "∩");
+    string = replace_all(string, "&cup;", "∪");
+    string = replace_all(string, "&int;", "∫");
+    string = replace_all(string, "&there4;", "∴");
+    string = replace_all(string, "&sim;", "∼");
+    string = replace_all(string, "&cong;", "≅");
+    string = replace_all(string, "&asymp;", "≈");
+    string = replace_all(string, "&ne;", "≠");
+    string = replace_all(string, "&equiv;", "≡");
+    string = replace_all(string, "&le;", "≤");
+    string = replace_all(string, "&ge;", "≥");
+    string = replace_all(string, "&sub;", "⊂");
+    string = replace_all(string, "&sup;", "⊃");
+    string = replace_all(string, "&nsub;", "⊄");
+    string = replace_all(string, "&sube;", "⊆");
+    string = replace_all(string, "&supe;", "⊇");
+    string = replace_all(string, "&oplus;", "⊕");
+    string = replace_all(string, "&otimes;", "⊗");
+    string = replace_all(string, "&perp;", "⊥");
+    string = replace_all(string, "&sdot;", "⋅");
+    string = replace_all(string, "&lceil;", "⌈");
+    string = replace_all(string, "&rceil;", "⌉");
+    string = replace_all(string, "&lfloor;", "⌊");
+    string = replace_all(string, "&rfloor;", "⌋");
+    string = replace_all(string, "&loz;", "◊");
+    string = replace_all(string, "&spades;", "♠");
+    string = replace_all(string, "&clubs;", "♣");
+    string = replace_all(string, "&hearts;", "♥");
+    string = replace_all(string, "&diams;", "♦");
+    string = replace_all(string, "&lang;", "⟨");
+    string = replace_all(string, "&rang;", "⟩");
+
+    return string;
+}
+
+char *deci_unicode_converter(char *string) {
+    string = replace_all(string, "&#34", "\"");
+    string = replace_all(string, "&#38", "&");
+    string = replace_all(string, "&#39", "'");
+    string = replace_all(string, "&#60", "<");
+    string = replace_all(string, "&#62", ">");
+    string = replace_all(string, "&#160", " ");
+    string = replace_all(string, "&#161", "¡");
+    string = replace_all(string, "&#162", "¢");
+    string = replace_all(string, "&#163", "£");
+    string = replace_all(string, "&#164", "¤");
+    string = replace_all(string, "&#165", "¥");
+    string = replace_all(string, "&#166", "¦");
+    string = replace_all(string, "&#167", "§");
+    string = replace_all(string, "&#168", "¨");
+    string = replace_all(string, "&#169", "©");
+    string = replace_all(string, "&#170", "ª");
+    string = replace_all(string, "&#171", "«");
+    string = replace_all(string, "&#172", "¬");
+    string = replace_all(string, "&#173", "­");
+    string = replace_all(string, "&#174", "®");
+    string = replace_all(string, "&#175", "¯");
+    string = replace_all(string, "&#176", "°");
+    string = replace_all(string, "&#177", "±");
+    string = replace_all(string, "&#178", "²");
+    string = replace_all(string, "&#179", "³");
+    string = replace_all(string, "&#180", "´");
+    string = replace_all(string, "&#181", "µ");
+    string = replace_all(string, "&#182", "¶");
+    string = replace_all(string, "&#183", "·");
+    string = replace_all(string, "&#184", "¸");
+    string = replace_all(string, "&#185", "¹");
+    string = replace_all(string, "&#186", "º");
+    string = replace_all(string, "&#187", "»");
+    string = replace_all(string, "&#188", "¼");
+    string = replace_all(string, "&#189", "½");
+    string = replace_all(string, "&#190", "¾");
+    string = replace_all(string, "&#191", "¿");
+    string = replace_all(string, "&#192", "À");
+    string = replace_all(string, "&#193", "Á");
+    string = replace_all(string, "&#194", "Â");
+    string = replace_all(string, "&#195", "Ã");
+    string = replace_all(string, "&#196", "Ä");
+    string = replace_all(string, "&#197", "Å");
+    string = replace_all(string, "&#198", "Æ");
+    string = replace_all(string, "&#199", "Ç");
+    string = replace_all(string, "&#200", "È");
+    string = replace_all(string, "&#201", "É");
+    string = replace_all(string, "&#202", "Ê");
+    string = replace_all(string, "&#203", "Ë");
+    string = replace_all(string, "&#204", "Ì");
+    string = replace_all(string, "&#205", "Í");
+    string = replace_all(string, "&#206", "Î");
+    string = replace_all(string, "&#207", "Ï");
+    string = replace_all(string, "&#208", "Ð");
+    string = replace_all(string, "&#209", "Ñ");
+    string = replace_all(string, "&#210", "Ò");
+    string = replace_all(string, "&#211", "Ó");
+    string = replace_all(string, "&#212", "Ô");
+    string = replace_all(string, "&#213", "Õ");
+    string = replace_all(string, "&#214", "Ö");
+    string = replace_all(string, "&#215", "×");
+    string = replace_all(string, "&#216", "Ø");
+    string = replace_all(string, "&#217", "Ù");
+    string = replace_all(string, "&#218", "Ú");
+    string = replace_all(string, "&#219", "Û");
+    string = replace_all(string, "&#220", "Ü");
+    string = replace_all(string, "&#221", "Ý");
+    string = replace_all(string, "&#222", "Þ");
+    string = replace_all(string, "&#223", "ß");
+    string = replace_all(string, "&#224", "à");
+    string = replace_all(string, "&#225", "á");
+    string = replace_all(string, "&#226", "â");
+    string = replace_all(string, "&#227", "ã");
+    string = replace_all(string, "&#228", "ä");
+    string = replace_all(string, "&#229", "å");
+    string = replace_all(string, "&#230", "æ");
+    string = replace_all(string, "&#231", "ç");
+    string = replace_all(string, "&#232", "è");
+    string = replace_all(string, "&#233", "é");
+    string = replace_all(string, "&#234", "ê");
+    string = replace_all(string, "&#235", "ë");
+    string = replace_all(string, "&#236", "ì");
+    string = replace_all(string, "&#237", "í");
+    string = replace_all(string, "&#238", "î");
+    string = replace_all(string, "&#239", "ï");
+    string = replace_all(string, "&#240", "ð");
+    string = replace_all(string, "&#241", "ñ");
+    string = replace_all(string, "&#242", "ò");
+    string = replace_all(string, "&#243", "ó");
+    string = replace_all(string, "&#244", "ô");
+    string = replace_all(string, "&#245", "õ");
+    string = replace_all(string, "&#246", "ö");
+    string = replace_all(string, "&#247", "÷");
+    string = replace_all(string, "&#248", "ø");
+    string = replace_all(string, "&#249", "ù");
+    string = replace_all(string, "&#250", "ú");
+    string = replace_all(string, "&#251", "û");
+    string = replace_all(string, "&#252", "ü");
+    string = replace_all(string, "&#253", "ý");
+    string = replace_all(string, "&#254", "þ");
+    string = replace_all(string, "&#255", "ÿ");
+    string = replace_all(string, "&#338", "Œ");
+    string = replace_all(string, "&#339", "œ");
+    string = replace_all(string, "&#352", "Š");
+    string = replace_all(string, "&#353", "š");
+    string = replace_all(string, "&#376", "Ÿ");
+    string = replace_all(string, "&#402", "ƒ");
+    string = replace_all(string, "&#710", "ˆ");
+    string = replace_all(string, "&#732", "˜");
+    string = replace_all(string, "&#913", "Α");
+    string = replace_all(string, "&#914", "Β");
+    string = replace_all(string, "&#915", "Γ");
+    string = replace_all(string, "&#916", "Δ");
+    string = replace_all(string, "&#917", "Ε");
+    string = replace_all(string, "&#918", "Ζ");
+    string = replace_all(string, "&#919", "Η");
+    string = replace_all(string, "&#920", "Θ");
+    string = replace_all(string, "&#921", "Ι");
+    string = replace_all(string, "&#922", "Κ");
+    string = replace_all(string, "&#923", "Λ");
+    string = replace_all(string, "&#924", "Μ");
+    string = replace_all(string, "&#925", "Ν");
+    string = replace_all(string, "&#926", "Ξ");
+    string = replace_all(string, "&#927", "Ο");
+    string = replace_all(string, "&#928", "Π");
+    string = replace_all(string, "&#929", "Ρ");
+    string = replace_all(string, "&#931", "Σ");
+    string = replace_all(string, "&#932", "Τ");
+    string = replace_all(string, "&#933", "Υ");
+    string = replace_all(string, "&#934", "Φ");
+    string = replace_all(string, "&#935", "Χ");
+    string = replace_all(string, "&#936", "Ψ");
+    string = replace_all(string, "&#937", "Ω");
+    string = replace_all(string, "&#945", "α");
+    string = replace_all(string, "&#946", "β");
+    string = replace_all(string, "&#947", "γ");
+    string = replace_all(string, "&#948", "δ");
+    string = replace_all(string, "&#949", "ε");
+    string = replace_all(string, "&#950", "ζ");
+    string = replace_all(string, "&#951", "η");
+    string = replace_all(string, "&#952", "θ");
+    string = replace_all(string, "&#953", "ι");
+    string = replace_all(string, "&#954", "κ");
+    string = replace_all(string, "&#955", "λ");
+    string = replace_all(string, "&#956", "μ");
+    string = replace_all(string, "&#957", "ν");
+    string = replace_all(string, "&#958", "ξ");
+    string = replace_all(string, "&#959", "ο");
+    string = replace_all(string, "&#960", "π");
+    string = replace_all(string, "&#961", "ρ");
+    string = replace_all(string, "&#962", "ς");
+    string = replace_all(string, "&#963", "σ");
+    string = replace_all(string, "&#964", "τ");
+    string = replace_all(string, "&#965", "υ");
+    string = replace_all(string, "&#966", "φ");
+    string = replace_all(string, "&#967", "χ");
+    string = replace_all(string, "&#968", "ψ");
+    string = replace_all(string, "&#969", "ω");
+    string = replace_all(string, "&#977", "ϑ");
+    string = replace_all(string, "&#978", "ϒ");
+    string = replace_all(string, "&#982", "ϖ");
+    string = replace_all(string, "&#8194", " ");
+    string = replace_all(string, "&#8195", " ");
+    string = replace_all(string, "&#8201", " ");
+    string = replace_all(string, "&#8204", "‌");
+    string = replace_all(string, "&#8205", "‍");
+    string = replace_all(string, "&#8206", "‎");
+    string = replace_all(string, "&#8207", "‏");
+    string = replace_all(string, "&#8211", "–");
+    string = replace_all(string, "&#8212", "—");
+    string = replace_all(string, "&#8216", "‘");
+    string = replace_all(string, "&#8217", "’");
+    string = replace_all(string, "&#8218", "‚");
+    string = replace_all(string, "&#8220", "“");
+    string = replace_all(string, "&#8221", "”");
+    string = replace_all(string, "&#8222", "„");
+    string = replace_all(string, "&#8224", "†");
+    string = replace_all(string, "&#8225", "‡");
+    string = replace_all(string, "&#8226", "•");
+    string = replace_all(string, "&#8230", "…");
+    string = replace_all(string, "&#8240", "‰");
+    string = replace_all(string, "&#8242", "′");
+    string = replace_all(string, "&#8243", "″");
+    string = replace_all(string, "&#8249", "‹");
+    string = replace_all(string, "&#8250", "›");
+    string = replace_all(string, "&#8254", "‾");
+    string = replace_all(string, "&#8260", "⁄");
+    string = replace_all(string, "&#8364", "€");
+    string = replace_all(string, "&#8465", "ℑ");
+    string = replace_all(string, "&#8472", "℘");
+    string = replace_all(string, "&#8476", "ℜ");
+    string = replace_all(string, "&#8482", "™");
+    string = replace_all(string, "&#8501", "ℵ");
+    string = replace_all(string, "&#8592", "←");
+    string = replace_all(string, "&#8593", "↑");
+    string = replace_all(string, "&#8594", "→");
+    string = replace_all(string, "&#8595", "↓");
+    string = replace_all(string, "&#8596", "↔");
+    string = replace_all(string, "&#8629", "↵");
+    string = replace_all(string, "&#8656", "⇐");
+    string = replace_all(string, "&#8657", "⇑");
+    string = replace_all(string, "&#8658", "⇒");
+    string = replace_all(string, "&#8659", "⇓");
+    string = replace_all(string, "&#8660", "⇔");
+    string = replace_all(string, "&#8704", "∀");
+    string = replace_all(string, "&#8706", "∂");
+    string = replace_all(string, "&#8707", "∃");
+    string = replace_all(string, "&#8709", "∅");
+    string = replace_all(string, "&#8711", "∇");
+    string = replace_all(string, "&#8712", "∈");
+    string = replace_all(string, "&#8713", "∉");
+    string = replace_all(string, "&#8715", "∋");
+    string = replace_all(string, "&#8719", "∏");
+    string = replace_all(string, "&#8721", "∑");
+    string = replace_all(string, "&#8722", "−");
+    string = replace_all(string, "&#8727", "∗");
+    string = replace_all(string, "&#8730", "√");
+    string = replace_all(string, "&#8733", "∝");
+    string = replace_all(string, "&#8734", "∞");
+    string = replace_all(string, "&#8736", "∠");
+    string = replace_all(string, "&#8743", "∧");
+    string = replace_all(string, "&#8744", "∨");
+    string = replace_all(string, "&#8745", "∩");
+    string = replace_all(string, "&#8746", "∪");
+    string = replace_all(string, "&#8747", "∫");
+    string = replace_all(string, "&#8756", "∴");
+    string = replace_all(string, "&#8764", "∼");
+    string = replace_all(string, "&#8773", "≅");
+    string = replace_all(string, "&#8776", "≈");
+    string = replace_all(string, "&#8800", "≠");
+    string = replace_all(string, "&#8801", "≡");
+    string = replace_all(string, "&#8804", "≤");
+    string = replace_all(string, "&#8805", "≥");
+    string = replace_all(string, "&#8834", "⊂");
+    string = replace_all(string, "&#8835", "⊃");
+    string = replace_all(string, "&#8836", "⊄");
+    string = replace_all(string, "&#8838", "⊆");
+    string = replace_all(string, "&#8839", "⊇");
+    string = replace_all(string, "&#8853", "⊕");
+    string = replace_all(string, "&#8855", "⊗");
+    string = replace_all(string, "&#8869", "⊥");
+    string = replace_all(string, "&#8901", "⋅");
+    string = replace_all(string, "&#8968", "⌈");
+    string = replace_all(string, "&#8969", "⌉");
+    string = replace_all(string, "&#8970", "⌊");
+    string = replace_all(string, "&#8971", "⌋");
+    string = replace_all(string, "&#9674", "◊");
+    string = replace_all(string, "&#9824", "♠");
+    string = replace_all(string, "&#9827", "♣");
+    string = replace_all(string, "&#9829", "♥");
+    string = replace_all(string, "&#9830", "♦");
+    string = replace_all(string, "&#10216", "⟨");
+    string = replace_all(string, "&#10217", "⟩");
+
+    return string;
+}
+
+
+
+/* The following code is from the following source:
+ * https://stackoverflow.com/questions/29788983/split-char-string-with-multi-character-delimiter-in-c
+ * Written by: https://stackoverflow.com/users/179910/jerry-coffin
+ */
+multi_tok_t s = NULL;
 
 multi_tok_t init() {
     return NULL;
@@ -774,6 +793,7 @@ char *multi_tok(char *input, char *delimiter) {
     return temp;
 }
 
+// End of code from source
 
 FILE *open_file(char *filename, char *mode) {
     FILE *file = fopen(filename, mode);
@@ -809,15 +829,12 @@ char *join_tokens(ARRAY array, char *delimiter);
 ARRAY tokenize(char *string, char *delimiter) {
     ARRAY array = array_create(1);
 
-    char *copy = string_remove_newline(string);
-    char *token = multi_tok(copy, delimiter);
+    char *token = multi_tok(string_trim(string, true), delimiter);
 
     while (token != NULL) {
         array_add(array, (void *) string_create(token));
         token = multi_tok(NULL, delimiter);
     }
-
-    destroy_strings(1, copy);
 
     return array;
 }
@@ -826,7 +843,7 @@ char *join_tokens(ARRAY array, char *delimiter) {
     char *str = string_create("");
 
     for (int i = 0; i < array->size; i++) {
-        str = concat_strings(3, str, (char *) array->data[i], delimiter);
+        str = string_concat(3, str, (char *) array->data[i], delimiter);
     }
 
     str[strlen(str) - strlen(delimiter)] = '\0';
@@ -835,7 +852,6 @@ char *join_tokens(ARRAY array, char *delimiter) {
 }
 
 
-#endif
+#endif // ARRAY_H
 
-
-#endif
+#endif // UTILITIES_H
