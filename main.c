@@ -21,6 +21,7 @@
 
 #include "./lib/simple_curl.h"
 #include "./lib/manga.h"
+#include "./lib/mal.h"
 
 
 int main(int argc, char *argv[]) {
@@ -32,10 +33,31 @@ int main(int argc, char *argv[]) {
 
     // Create base directory to save mangas
     if (mkdir(SAVE_PATH, 0777) == -1 && errno != EEXIST) {
-        printf("Error creating directory mangas");
+        printf("Error creating directory 'mangas'");
         return 1;
     }
 
+    // cSpell:ignore kaguya sama
+    char *string = malloc(100 * sizeof(char));
+    printf("Enter manga name: ");
+    fgets(string, 100, stdin);
+    string[strlen(string) - 1] = '\0';
+
+    ARRAY results = mal_query(string);
+    mal_lookup((QUERY) results->data[0]);
+
+    array_destroy_struct(results, (void *) query_destroy);
+
+    string_destroy(string);
+
+
+    /*
+    string = string_create("Love is war");
+    results = mal_query(string);
+    query_print((QUERY) results->data[0]);
+    */
+
+    /*
     scan_directory();
 
     scan_rss((MANGA) mangas->data[66]);
@@ -50,6 +72,7 @@ int main(int argc, char *argv[]) {
     
     array_destroy(all_genres);
     array_destroy_struct(mangas, (void *) manga_destroy);
+    */
 
     return 0;
 }

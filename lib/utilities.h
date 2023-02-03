@@ -18,6 +18,7 @@ char *string_lowercase(char *string, bool inplace);
 char *string_uppercase(char *string, bool inplace);
 char *string_trim(char *string, bool inplace);
 char *string_concat(int count, ...);
+char *string_concat_(bool inplace, int count, ...);
 char *string_truncate(char *string, char *start, char *end, bool inplace);
 void string_destroy(char *string);
 void strings_destroy(int count, ...);
@@ -44,6 +45,7 @@ char *remove_all_string(char *string, char *find);
 
 char *html_unicode_converter(char *string);
 char *deci_unicode_converter(char *string);
+char *string_to_url(char *string);
 
 // Multi-tokenizer
 typedef char *multi_tok_t;
@@ -67,18 +69,24 @@ int count_digits(long long n) {
 
 
 char *string_create(char *string) {
+    if (string == NULL) { return NULL; }
+
     char *str = (char *) malloc(strlen(string) + 1);
     strcpy(str, string);
     return str;
 }
 
 char *string_copy(char *string) {
+    if (string == NULL) { return NULL; }
+
     char *str = (char *) malloc(strlen(string) + 1);
     strcpy(str, string);
     return str;
 }
 
 char *string_lowercase(char *string, bool inplace) {
+    if (string == NULL) { return NULL; }
+
     char *str;
     if (inplace) { str = string; }
     else { str = string_copy(string); }
@@ -91,6 +99,8 @@ char *string_lowercase(char *string, bool inplace) {
 }
 
 char *string_uppercase(char *string, bool inplace) {
+    if (string == NULL) { return NULL; }
+
     char *str;
     if (inplace) { str = string; }
     else { str = string_copy(string); }
@@ -103,6 +113,8 @@ char *string_uppercase(char *string, bool inplace) {
 }
 
 char *string_trim(char *string, bool inplace) {
+    if (string == NULL) { return NULL; }
+
     char *str;
 
     if (inplace) { str = string; }
@@ -112,7 +124,7 @@ char *string_trim(char *string, bool inplace) {
     while (str[i] == ' ' || str[i] == '\n' || str[i] == '\t' || str[i] == '\r') { i++; }
 
     int j = strlen(str) - 1;
-    while (str[i] == ' ' || str[i] == '\n' || str[i] == '\t' || str[i] == '\r') { j--; }
+    while (str[j] == ' ' || str[j] == '\n' || str[j] == '\t' || str[j] == '\r') { j--; }
 
     memmove(str, str + i, j - i + 1);
     str[j - i + 1] = '\0';
@@ -140,7 +152,36 @@ char *string_concat(int count, ...) {
     return str;
 }
 
+char *string_concat_(bool inplace, int count, ...) {
+    va_list args;
+    va_start(args, count);
+
+    int length = 0;
+    for (int i = 0; i < count; i++) {
+        length += strlen(va_arg(args, char *));
+    }
+
+    char *str = (char *) malloc(length + 1);
+    str[0] = '\0';
+
+    va_start(args, count);
+    for (int i = 0; i < count; i++) {
+        strcat(str, va_arg(args, char *));
+    }
+    
+    if (inplace) {
+        va_start(args, count);
+        char *pointer = va_arg(args, char *);
+        free(pointer);
+        pointer = str;
+    }
+
+    return str;
+}
+
 char *string_truncate(char *string, char *start, char *end, bool inplace) {
+    if (string == NULL) { return NULL; }
+
     char *start_index = strstr(string, start);
     if (start_index == NULL) { return (inplace) ? string : NULL; }
 
@@ -161,7 +202,8 @@ char *string_truncate(char *string, char *start, char *end, bool inplace) {
 }
 
 void string_destroy(char *string) {
-    free(string);
+    if (string != NULL)
+        free(string);
 }
 
 void strings_destroy(int count, ...) {
@@ -176,6 +218,8 @@ void strings_destroy(int count, ...) {
 
 
 char *replace_all_char(char *string, char find, char replace) {
+    if (string == NULL) { return NULL; }
+
     for (int i = 0; i < (int) strlen(string); i++) {
         if (string[i] == find) {
             string[i] = replace;
@@ -186,9 +230,12 @@ char *replace_all_char(char *string, char find, char replace) {
 }
 
 char *replace_all_string(char *string, char *find, char *replace) {
-    char *temp = NULL;
+    if (string == NULL) { return NULL; }
 
-    while ((temp = strstr(string, find)) != NULL) {
+    char *temp = NULL;
+    int last_index = 0;
+
+    while ((temp = strstr(string + last_index, find)) != NULL) {
         int index = temp - string;
         int length = strlen(string) - strlen(find) + strlen(replace) + 1;
 
@@ -207,6 +254,8 @@ char *replace_all_string(char *string, char *find, char *replace) {
 
 
 char *remove_all_char(char *string, char find) {
+    if (string == NULL) { return NULL; }
+
     char *temp = NULL;
 
     while ((temp = strchr(string, find)) != NULL) {
@@ -225,6 +274,8 @@ char *remove_all_char(char *string, char find) {
 }
 
 char *remove_all_string(char *string, char *find) {
+    if (string == NULL) { return NULL; }
+
     char *temp = NULL;
 
     while ((temp = strstr(string, find)) != NULL) {
@@ -245,6 +296,8 @@ char *remove_all_string(char *string, char *find) {
 
 
 char *html_unicode_converter(char *string) {
+    if (string == NULL) { return NULL; }
+
     string = replace_all(string, "&quot;", "\"");
     string = replace_all(string, "&amp;", "&");
     string = replace_all(string, "&apos;", "'");
@@ -502,7 +555,44 @@ char *html_unicode_converter(char *string) {
     return string;
 }
 
+char *html_remove_italic(char *string) {
+    if (string == NULL) { return NULL; }
+
+    string = replace_all(string, "<i>", "");
+    string = replace_all(string, "</i>", "");
+
+    return string;
+}
+
+char *html_remove_bold(char *string) {
+    if (string == NULL) { return NULL; }
+
+    string = replace_all(string, "<b>", "");
+    string = replace_all(string, "</b>", "");
+
+    return string;
+}
+
 char *deci_unicode_converter(char *string) {
+    if (string == NULL) { return NULL; }
+
+    char *pointer = string;
+
+    while ((pointer = strstr(pointer, "&#")) != NULL) {
+        // Remove the left padding zeros
+        while (*(pointer + 2) == '0') {
+            for (int i = 2; i < (int) strlen(pointer); i++) {
+                pointer[i] = pointer[i + 1];
+            }
+        }
+
+        // Remove the semicolon
+        pointer = strstr(pointer, ";");
+        for (int i = 0; i < (int) strlen(pointer); i++) {
+            pointer[i] = pointer[i + 1];
+        }
+    }
+
     string = replace_all(string, "&#34", "\"");
     string = replace_all(string, "&#38", "&");
     string = replace_all(string, "&#39", "'");
@@ -756,6 +846,49 @@ char *deci_unicode_converter(char *string) {
     string = replace_all(string, "&#9830", "♦");
     string = replace_all(string, "&#10216", "⟨");
     string = replace_all(string, "&#10217", "⟩");
+
+    return string;
+}
+
+char *string_to_url(char *string) {
+    if (string == NULL) { return NULL; }
+
+    string = string_trim(string, true);
+
+    string = replace_all(string, "%",  "%25"); // Must be first
+
+    string = replace_all(string, " ",  "%20");
+    string = replace_all(string, "!",  "%21");
+    string = replace_all(string, "\"", "%22");
+    string = replace_all(string, "#",  "%23");
+    string = replace_all(string, "$",  "%24");
+    string = replace_all(string, "&",  "%26");
+    string = replace_all(string, "'",  "%27");
+    string = replace_all(string, "(",  "%28");
+    string = replace_all(string, ")",  "%29");
+    string = replace_all(string, "*",  "%2A");
+    string = replace_all(string, "+",  "%2B");
+    string = replace_all(string, ",",  "%2C");
+    string = replace_all(string, "-",  "%2D");
+    string = replace_all(string, ".",  "%2E");
+    string = replace_all(string, "/",  "%2F");
+    string = replace_all(string, ":",  "%3A");
+    string = replace_all(string, ";",  "%3B");
+    string = replace_all(string, "<",  "%3C");
+    string = replace_all(string, "=",  "%3D");
+    string = replace_all(string, ">",  "%3E");
+    string = replace_all(string, "?",  "%3F");
+    string = replace_all(string, "@",  "%40");
+    string = replace_all(string, "[",  "%5B");
+    string = replace_all(string, "\\", "%5C");
+    string = replace_all(string, "]",  "%5D");
+    string = replace_all(string, "^",  "%5E");
+    string = replace_all(string, "_",  "%5F");
+    string = replace_all(string, "`",  "%60");
+    string = replace_all(string, "{",  "%7B");
+    string = replace_all(string, "|",  "%7C");
+    string = replace_all(string, "}",  "%7D");
+    string = replace_all(string, "~",  "%7E");
 
     return string;
 }
