@@ -17,8 +17,7 @@ char *string_copy(char *string);
 char *string_lowercase(char *string, bool inplace);
 char *string_uppercase(char *string, bool inplace);
 char *string_trim(char *string, bool inplace);
-char *string_concat(int count, ...);
-char *string_concat_(bool inplace, int count, ...);
+char *string_concat(bool inplace, int count, ...);
 char *string_truncate(char *string, char *start, char *end, bool inplace);
 void string_destroy(char *string);
 void strings_destroy(int count, ...);
@@ -132,27 +131,7 @@ char *string_trim(char *string, bool inplace) {
     return str;
 }
 
-char *string_concat(int count, ...) {
-    va_list args;
-    va_start(args, count);
-
-    int length = 0;
-    for (int i = 0; i < count; i++) {
-        length += strlen(va_arg(args, char *));
-    }
-
-    char *str = (char *) malloc(length + 1);
-    str[0] = '\0';
-
-    va_start(args, count);
-    for (int i = 0; i < count; i++) {
-        strcat(str, va_arg(args, char *));
-    }
-
-    return str;
-}
-
-char *string_concat_(bool inplace, int count, ...) {
+char *string_concat(bool inplace, int count, ...) {
     va_list args;
     va_start(args, count);
 
@@ -976,7 +955,7 @@ char *join_tokens(ARRAY array, char *delimiter) {
     char *str = string_create("");
 
     for (int i = 0; i < array->size; i++) {
-        str = string_concat(3, str, (char *) array->data[i], delimiter);
+        str = string_concat(false, 3, str, (char *) array->data[i], delimiter);
     }
 
     str[strlen(str) - strlen(delimiter)] = '\0';

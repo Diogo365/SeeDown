@@ -226,14 +226,14 @@ void scan_directory() {
                 manga->genres = string_create(genre);
             } else {
                 char *point = manga->genres;
-                manga->genres = string_concat(3, manga->genres, ", ", genre);
+                manga->genres = string_concat(false, 3, manga->genres, ", ", genre);
                 string_destroy(point);
             }
         }
 
         manga->db_name = string_truncate((char *) json_mangas_array->data[i], "\"i\":\"", "\"", false);
-        manga->url = string_concat(2, MANGA_URL, manga->db_name);
-        manga->rss_url = string_concat(3, RSS_URL, manga->db_name, ".xml");
+        manga->url = string_concat(false, 2, MANGA_URL, manga->db_name);
+        manga->rss_url = string_concat(false, 3, RSS_URL, manga->db_name, ".xml");
 
         string_destroy(temp);
         array_destroy(genres);
@@ -274,7 +274,7 @@ void scan_rss(MANGA manga) {
         chapter->url = string_truncate(items->data[i], "<link>", "</link>", false);        
         chapter->pub_date = string_truncate(items->data[i], "<pubDate>", "</pubDate>",false);
 
-        char *temp = string_concat(3, ">", manga->db_name, "-");
+        char *temp = string_concat(false, 3, ">", manga->db_name, "-");
         char *number = string_truncate(items->data[i], temp, "</", false);
         chapter->number = atof(number);
 
@@ -331,7 +331,7 @@ void scan_manga(MANGA manga) {
                 manga->authors = string_create(temp);
             } else {
                 char *point = manga->authors;
-                manga->authors = string_concat(3, manga->authors, ", ", temp);
+                manga->authors = string_concat(false, 3, manga->authors, ", ", temp);
                 string_destroy(point);
             }
             string_destroy(temp);
@@ -423,7 +423,7 @@ void download_chapter(MANGA manga) {
     if (manga == NULL) { return; }
 
     // Setup the directory
-    char *dir = string_concat(3, SAVE_PATH, manga->db_name, "/");
+    char *dir = string_concat(false, 3, SAVE_PATH, manga->db_name, "/");
     // printf("Creating directory %s\n", dir);
     if (mkdir(dir, 0777) == -1 && errno != EEXIST) {
         printf("Error: Could not create directory %s\n", dir);
@@ -467,8 +467,8 @@ void download_chapter(MANGA manga) {
                  i);
 
             
-            char *image_url = string_concat(6, "https://", chapter->domain_url, "/manga/", manga->db_name, "/", image_name);
-            char *image_path = string_concat(2, chapter_dir, image_name);
+            char *image_url = string_concat(false, 6, "https://", chapter->domain_url, "/manga/", manga->db_name, "/", image_name);
+            char *image_path = string_concat(false, 2, chapter_dir, image_name);
             
             // printf("  Downloading %s\n", image_url);
             // printf("  Saving to %s\n", image_path);

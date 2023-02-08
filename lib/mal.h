@@ -197,7 +197,7 @@ ARRAY mal_query(char *string) {
     printf("Querying MAL for '%s'...\n", string);
     string = string_to_url(string);
 
-    char *url = string_concat(2, QUERY_URL, string);
+    char *url = string_concat(false, 2, QUERY_URL, string);
 
     void *data = simple_curl(url);
     if (data == NULL) { return NULL; }
@@ -289,7 +289,7 @@ QUERY mal_lookup(QUERY query) {
         title = html_unicode_converter(title);
         title = string_trim(title, true);
 
-        char *alt_title = string_concat(3, language, " ", title);
+        char *alt_title = string_concat(false, 3, language, " ", title);
 
         array_add(alternative_titles, alt_title);
 
@@ -342,7 +342,7 @@ QUERY mal_lookup(QUERY query) {
         query->genres = string_create("");
         while ((pointer = strstr(pointer, "title=\"")) != NULL) {
             char *temp = string_truncate(pointer, "title=\"", "\"", false);
-            query->genres = string_concat_(true, 3, query->genres, temp, ", ");
+            query->genres = string_concat(true, 3, query->genres, temp, ", ");
 
             string_destroy(temp);
 
@@ -363,7 +363,7 @@ QUERY mal_lookup(QUERY query) {
         query->themes = string_create("");
         while ((pointer = strstr(pointer, "title=\"")) != NULL) {
             char *temp = string_truncate(pointer, "title=\"", "\"", false);
-            query->themes = string_concat_(true, 3, query->themes, temp, ", ");
+            query->themes = string_concat(true, 3, query->themes, temp, ", ");
 
             string_destroy(temp);
 
@@ -384,7 +384,7 @@ QUERY mal_lookup(QUERY query) {
         query->demographic = string_create("");
         while ((pointer = strstr(pointer, "title=\"")) != NULL) {
             char *temp = string_truncate(pointer, "title=\"", "\"", false);
-            query->demographic = string_concat_(true, 3, query->demographic, temp, ", ");
+            query->demographic = string_concat(true, 3, query->demographic, temp, ", ");
 
             string_destroy(temp);
 
@@ -405,7 +405,7 @@ QUERY mal_lookup(QUERY query) {
         query->serialization = string_create("");
         while ((pointer = strstr(pointer, "title=\"")) != NULL) {
             char *temp = string_truncate(pointer, "title=\"", "\"", false);
-            query->serialization = string_concat_(true, 3, query->serialization, temp, ", ");
+            query->serialization = string_concat(true, 3, query->serialization, temp, ", ");
 
             string_destroy(temp);
 
@@ -437,7 +437,7 @@ QUERY mal_lookup(QUERY query) {
                 role = string_truncate(pointer, "</a>", "</div>", false);
             }
 
-            query->authors = string_concat_(true, 3, query->authors, author, role);
+            query->authors = string_concat(true, 3, query->authors, author, role);
 
             strings_destroy(2, author, role);
         }
