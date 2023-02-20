@@ -22,6 +22,7 @@
 #include "./lib/simple_curl.h"
 #include "./lib/manga.h"
 #include "./lib/mal.h"
+#include "./lib/gui.h"
 
 
 int main(int argc, char *argv[]) {
@@ -37,6 +38,9 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    init_gui();
+
+    /*
     // cSpell:ignore kaguya sama
     char *string = malloc(100 * sizeof(char));
     printf("Enter manga name: ");
@@ -49,6 +53,7 @@ int main(int argc, char *argv[]) {
     array_destroy_struct(results, (void *) query_destroy);
 
     string_destroy(string);
+    */
 
 
     /*

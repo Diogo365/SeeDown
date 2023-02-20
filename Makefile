@@ -9,7 +9,7 @@ CC = gcc
 CFLAGS = -g -Wall -Wextra -I .
 
 #Library flags
-LDFLAGS = -lpthread -lcurl
+LDFLAGS = -lpthread -lcurl -lncurses
 
 all: clean main.out run
 
