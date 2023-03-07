@@ -58,8 +58,8 @@ QUERY query_create();
 void query_destroy(QUERY query);
 void query_print(QUERY query);
 
-ARRAY mal_query(char *string);
-ARRAY mal_parse(ARRAY rows);
+ARRAY mal_query(char *string, int limit);
+ARRAY mal_parse(ARRAY rows, int limit);
 
 // Implementations
 
@@ -193,8 +193,8 @@ void query_print(QUERY query) {
 
 // Related to search queries done by the user
 
-ARRAY mal_query(char *string) {
-    printf("Querying MAL for '%s'...\n", string);
+ARRAY mal_query(char *string, int limit) {
+    // printf("Querying MAL for '%s'...\n", string);
     string = string_to_url(string);
 
     char *url = string_concat(false, 2, QUERY_URL, string);
@@ -213,7 +213,7 @@ ARRAY mal_query(char *string) {
     ARRAY rows = tokenize(table, "</tr>");
     if (rows == NULL) { return NULL; }
 
-    ARRAY queries = mal_parse(rows);
+    ARRAY queries = mal_parse(rows, limit);
 
     strings_destroy(3, url, data, table);
     array_destroy(rows);
@@ -221,11 +221,11 @@ ARRAY mal_query(char *string) {
     return queries;
 }
 
-ARRAY mal_parse(ARRAY rows) {
-    printf("Parsing MAL results...\n");
+ARRAY mal_parse(ARRAY rows, int limit) {
+    // printf("Parsing MAL results...\n");
     ARRAY queries = array_create(0);
 
-    for (int i = 1; i < rows->size - 1; i++) {
+    for (int i = 1; i < rows->size - 1 && i <= limit; i++) {
         char *row = (char *) rows->data[i];
         if (row == NULL) { continue; }
 
@@ -250,7 +250,7 @@ ARRAY mal_parse(ARRAY rows) {
         array_add(queries, query);
     }
 
-    printf("Found %d results.\n", queries->size);
+    // printf("Found %d results.\n", queries->size);
 
     return queries;
 }
@@ -262,7 +262,7 @@ QUERY mal_lookup(QUERY query) {
     if (query == NULL) { return NULL; }
     if (query->details) { return query; }
 
-    printf("Looking up '%s'...\n", query->title);
+    // printf("Looking up '%s'...\n", query->title);
 
     void *data = simple_curl(query->url);
     if (data == NULL) { return NULL; }
@@ -459,8 +459,6 @@ QUERY mal_lookup(QUERY query) {
     query->popularity   = remove_all( string_trim( string_truncate(statistics, "Popularity:</span>"   , "</div>", false), true), "\"");
     query->members      = remove_all( string_trim( string_truncate(statistics, "Members:</span>"      , "</div>", false), true), "\"");
     query->favorites    = remove_all( string_trim( string_truncate(statistics, "Favorites:</span>"    , "</div>", false), true), "\"");
-
-    query_print(query);
 
     strings_destroy(11,
                     data,

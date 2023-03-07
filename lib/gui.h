@@ -1,5 +1,16 @@
 #include <ncurses.h>
 
+void rectangle(int y1, int x1, int y2, int x2) {
+    mvhline(y1, x1, 0, x2-x1);
+    mvhline(y2, x1, 0, x2-x1);
+    mvvline(y1, x1, 0, y2-y1);
+    mvvline(y1, x2, 0, y2-y1);
+    mvaddch(y1, x1, ACS_ULCORNER);
+    mvaddch(y2, x1, ACS_LLCORNER);
+    mvaddch(y1, x2, ACS_URCORNER);
+    mvaddch(y2, x2, ACS_LRCORNER);
+}
+
 void unimplemented();
 void exit_gui();
 void init_gui();
@@ -13,6 +24,8 @@ typedef struct {
     void (*callback)();
 } MENU_ITEM;
 
+#include "./screens/search.h"
+
 char *logo[] = {
     "  ___          ___                  ",
     " / __| ___ ___|   \\ _____ __ ___ _  ",
@@ -22,7 +35,9 @@ char *logo[] = {
 };
 
 MENU_ITEM menu_items[] = {
-    {"Search", 0, 0, 0, unimplemented},
+    {"Search", 0, 0, 0, search_init},
+    {"Library", 0, 0, 0, unimplemented},
+    {"History", 0, 0, 0, unimplemented},
     {"Settings", 0, 0, 0, unimplemented},
     {"Exit", 0, 0, 0, exit_gui}
 };
@@ -55,11 +70,13 @@ void exit_gui() {
     else 
         printf("Exited ncurses\n");
 
+    printf("\033[?1003l\n");
+
     exit(0);
 }
 
 void init_gui() {
-    setenv("TERM", "xterm-1006", 1);
+    // setenv("TERM", "xterm-1006", 1);
 
     initscr();
     cbreak();
@@ -90,7 +107,7 @@ void init_gui() {
 
         // Draw logo
         for (int i = 0; i < 5; i++) {
-            mvprintw(stdscr->_maxy / 2 - 10 + i, stdscr->_maxx / 2 - 18, "%s", logo[i]);
+            mvprintw(stdscr->_maxy / 4 - 2 + i, stdscr->_maxx / 2 - 18, "%s", logo[i]);
         }
 
         // Draw menu
@@ -126,7 +143,17 @@ void init_gui() {
 
         // Enter key
         case 10:
-            if (menu_selected != -1) menu_items[menu_selected].callback();
+            if (menu_selected != -1) {
+                menu_items[menu_selected].callback();
+
+                wclear(stdscr);
+
+                box(stdscr, 0, 0);
+                mvprintw(0, 2, "SeeDown");
+
+                wrefresh(stdscr);
+            }
+
             break;
 
 
@@ -137,7 +164,16 @@ void init_gui() {
                 mvprintw(stdscr->_maxy, 2, " Mouse event: %d, %d, %d ", event.x, event.y, event.bstate);
 
                 if(event.bstate & BUTTON1_PRESSED) { // Left-click
-                    if (menu_selected != -1) menu_items[menu_selected].callback();
+                    if (menu_selected != -1) {
+                        menu_items[menu_selected].callback();
+
+                        wclear(stdscr);
+
+                        box(stdscr, 0, 0);
+                        mvprintw(0, 2, "SeeDown");
+
+                        wrefresh(stdscr);
+                    }
                 }
                 else if (event.bstate & BUTTON2_PRESSED) { // Middle-click
                     // Do something
