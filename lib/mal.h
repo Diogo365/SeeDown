@@ -193,9 +193,9 @@ void query_print(QUERY query) {
 
 // Related to search queries done by the user
 
-ARRAY mal_query(char *string, int limit) {
+ARRAY mal_query(char *input, int limit) {
     // printf("Querying MAL for '%s'...\n", string);
-    string = string_to_url(string);
+    char *string = string_to_url(string_create(input));
 
     char *url = string_concat(false, 2, QUERY_URL, string);
 
